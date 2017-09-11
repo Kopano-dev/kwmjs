@@ -9,7 +9,7 @@
 'use strict';
 
 export interface IRTMConnectResponse {
-	url: string;
+	url?: string;
 	ok: boolean;
 	error: IRTMDataError;
 }
@@ -34,6 +34,10 @@ export interface IRTMTypeError extends IRTMTypeEnvelope {
 
 export interface IRTMTypeSubTypeEnvelope extends IRTMTypeEnvelope {
 	subtype: string;
+}
+
+export interface IRTMTypePingPong extends IRTMTypeEnvelope {
+	ts: number;
 }
 
 export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {

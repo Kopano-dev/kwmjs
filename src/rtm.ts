@@ -38,6 +38,7 @@ export interface IRTMTypeSubTypeEnvelope extends IRTMTypeEnvelope {
 
 export interface IRTMTypePingPong extends IRTMTypeEnvelope {
 	ts: number;
+	auth?: string;
 }
 
 export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {

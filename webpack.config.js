@@ -47,7 +47,7 @@ module.exports = {
 			outputFilename: 'kwm.3rdpartylicenses.txt'
 		}),
 		new BannerPlugin(
-			fs.readFileSync(path.resolve(__dirname, '..', '..', 'LICENSE.txt')).toString()
+			fs.readFileSync(path.resolve(__dirname, 'LICENSE.txt')).toString()
 			+ '\n\n@version ' + buildVersion + ' (' + buildDate + ')'
 		)
 	]

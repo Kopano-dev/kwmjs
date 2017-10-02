@@ -3,7 +3,7 @@
 ## Create a new call
 
 ```javascript
-const kwm = new kwmjs.KWM();
+const kwm = new KWM();
 kwm.connect('userA').then(() => {
 	// Connected, ready to call.
 	return kwm.webrtc.doCall('userB');
@@ -15,7 +15,7 @@ kwm.connect('userA').then(() => {
 ## Accept an incoming call
 
 ```javascript
-const kwm = new kwmjs.KWM();
+const kwm = new KWM();
 kwm.webrtc.onpeer = event => {
 	switch (event.event) {
 		case 'incomingcall':

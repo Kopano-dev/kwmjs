@@ -6,6 +6,7 @@ const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const LicenseWebpackPlugin = require('license-webpack-plugin').LicenseWebpackPlugin;
 const buildVersion = process.env.BUILD_VERSION || 'v0.0.0-no-proper-build';
 const buildDate = process.env.BUILD_DATE || new Date();
+const target = process.env.TARGET || 'ES2015';
 
 module.exports = {
 	resolve: {
@@ -24,7 +25,12 @@ module.exports = {
 		rules: [
 			{
 				test: /\.tsx?$/,
-				loaders: ['ts-loader']
+				loader: 'ts-loader',
+				options: {
+					compilerOptions: {
+						target: target
+					}
+				}
 			}
 		]
 	},
@@ -48,7 +54,7 @@ module.exports = {
 		}),
 		new BannerPlugin(
 			fs.readFileSync(path.resolve(__dirname, 'LICENSE.txt')).toString()
-			+ '\n\n@version ' + buildVersion + ' (' + buildDate + ')'
+			+ '\n\n@version ' + buildVersion + ' (' + buildDate + ')' + ' ' + target
 		)
 	]
 };

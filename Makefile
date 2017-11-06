@@ -6,6 +6,7 @@ ESLINT ?= eslint
 
 # Variables
 DIST := ./dist
+TARGET  ?= ES2015
 DATE    ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 VERSION ?= $(shell git describe --tags --always --dirty --match=v* 2>/dev/null || \
 			cat $(CURDIR)/.version 2> /dev/null || echo v0.0.0-unreleased)
@@ -20,11 +21,15 @@ $(DIST): ; $(info creating dist path ...) @
 
 .PHONY: kwm
 kwm: vendor | $(DIST) ; $(info building $@ ...) @
-	@BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) $(YARN) webpack --
+	BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack -- $(ARGS)
+
+.PHONY: kwm-es5
+kwm-es5: TARGET=ES5
+kwm-es5: kwm
 
 .PHONY: kwm-dev
 kwm-dev: vendor | $(DIST) ; $(info building and watching $@ ...) @
-	@BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) $(YARN) webpack -- --progress --color --watch
+	@BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack -- --progress --color --watch
 
 .PHONY: docs
 docs: vendor | $(DIST) ; $(info building $@ ...) @

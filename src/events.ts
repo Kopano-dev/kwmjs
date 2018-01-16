@@ -11,10 +11,7 @@
 import { KWM } from './kwm';
 import { PeerRecord } from './webrtc';
 
-/**
- * @private
- */
-class BaseEvent {
+export class BaseEvent {
 	public static eventName = 'BaseEvent';
 	public static getName(): string {
 		return this.eventName;

@@ -28,7 +28,7 @@ let websocketSequence = 0;
 const authorizationTypeToken = 'Token';
 const authorizationTypeBearer = 'Bearer';
 
-interface IKWMOptions {
+export interface IKWMOptions {
 	authorizationType?: string;
 	authorizationValue?: string;
 }
@@ -37,7 +37,7 @@ interface IKWMOptions {
  * IReplyTimeoutRecord is an interface to hold registered reply timeouts with a
  * resolve function.
  */
-interface IReplyTimeoutRecord {
+export interface IReplyTimeoutRecord {
 	resolve: (message: IRTMTypeEnvelope) => void;
 	timeout: number;
 }
@@ -46,7 +46,7 @@ interface IReplyTimeoutRecord {
  * KWMInit is a helper constructor to create KWM interface with settings and
  * callbacks.
  */
-class KWMInit {
+export class KWMInit {
 	public static options: any = {
 		connectTimeout: 5000,
 		heartbeatInterval: 5000,

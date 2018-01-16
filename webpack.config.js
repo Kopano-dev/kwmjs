@@ -4,7 +4,19 @@ const BannerPlugin = require('webpack').BannerPlugin;
 const DefinePlugin = require('webpack').DefinePlugin;
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const LicenseWebpackPlugin = require('license-webpack-plugin').LicenseWebpackPlugin;
-const buildVersion = process.env.BUILD_VERSION || 'v0.0.0-no-proper-build';
+const GitRevisionPlugin = require('git-revision-webpack-plugin');
+
+function getVersionFromGit() {
+	const p = new GitRevisionPlugin({
+		versionCommand: '\
+			describe --tags --always --dirty --match=v* 2>/dev/null || \
+				cat ./.version 2> /dev/null || echo v0.0.0-unreleased'
+	});
+
+	return p.version();
+}
+
+const buildVersion = process.env.BUILD_VERSION || getVersionFromGit();
 const buildDate = process.env.BUILD_DATE || new Date();
 const target = process.env.TARGET || 'ES2015';
 
@@ -12,20 +24,34 @@ module.exports = {
 	resolve: {
 		extensions: ['.ts', '.js']
 	},
-	entry: './src/kwm.ts',
+	entry: [
+		__dirname + '/src/kwm.ts'
+	],
 	output: {
 		filename: 'kwm.js',
 		path: path.resolve(__dirname, 'dist'),
 		publicPath: '/dist/',
 		library: 'KWM',
 		libraryExport: 'KWM',
-		libraryTarget: 'umd'
+		libraryTarget: 'umd',
+		umdNamedDefine: true
 	},
 	module: {
 		rules: [
 			{
 				test: /\.tsx?$/,
+				loader: 'tslint-loader',
+				exclude: /node_modules/,
+				enforce: 'pre',
+				options: {
+					emitErrors: true,
+					failOnHint: false
+				}
+			},
+			{
+				test: /\.tsx?$/,
 				loader: 'ts-loader',
+				exclude: /node_modules/,
 				options: {
 					compilerOptions: {
 						target: target
@@ -37,6 +63,7 @@ module.exports = {
 	devtool: 'source-map',
 	plugins: [
 		new UglifyJsPlugin({
+			sourceMap: true,
 			uglifyOptions: {
 				ecma: 6,
 				warnings: true

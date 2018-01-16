@@ -1,8 +1,6 @@
 # Tools
 
 YARN   ?= yarn
-TSLINT ?= tslint
-ESLINT ?= eslint
 
 # Variables
 DIST := ./dist
@@ -21,7 +19,7 @@ $(DIST): ; $(info creating dist path ...) @
 
 .PHONY: kwm
 kwm: vendor | $(DIST) ; $(info building $@ ...) @
-	BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack -- $(ARGS)
+	BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack --display-error-details --verbose
 
 .PHONY: kwm-es5
 kwm-es5: TARGET=ES5
@@ -29,7 +27,7 @@ kwm-es5: kwm
 
 .PHONY: kwm-dev
 kwm-dev: vendor | $(DIST) ; $(info building and watching $@ ...) @
-	@BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack -- --progress --color --watch
+	@BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack --display-error-details --progress --verbose --color --watch
 
 .PHONY: docs
 docs: vendor | $(DIST) ; $(info building $@ ...) @
@@ -39,8 +37,7 @@ docs: vendor | $(DIST) ; $(info building $@ ...) @
 
 .PHONY: lint
 lint: vendor ; $(info running linters ...) @
-	@$(TSLINT) --type-check -p .
-	@$(ESLINT) ./src
+	@$(YARN) tslint -p .
 
 # Yarn
 

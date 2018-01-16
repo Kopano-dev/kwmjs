@@ -1,9 +1,19 @@
 {
   "name": "kwmjs",
-  "version": "1.0.0",
+  "description": "Kopano Webmeetings Javascript client library",
+  "author": "Kopano b.v. <info@kopano.com>",
+  "license": "MIT",
+  "version": "0.4.0",
+  "main": "dist/kwm.js",
+  "scripts": {
+    "prepublish": "webpack --display-error-details --verbose"
+  },
   "devDependencies": {
+    "git-revision-webpack-plugin": "^2.5.1",
     "license-webpack-plugin": "^1.0.0",
     "ts-loader": "^2.3.4",
+    "tslint": "^5.9.1",
+    "tslint-loader": "^3.5.3",
     "typedoc": "^0.8.0",
     "typescript": "^2.4.2",
     "uglifyjs-webpack-plugin": "^1.0.0-beta.2",

@@ -9,8 +9,8 @@ const GitRevisionPlugin = require('git-revision-webpack-plugin');
 function getVersionFromGit() {
 	const p = new GitRevisionPlugin({
 		versionCommand: '\
-			describe --tags --always --dirty --match=v* 2>/dev/null || \
-				cat ./.version 2> /dev/null || echo v0.0.0-unreleased'
+			describe --tags --always --dirty --match=v* 2>/dev/null | sed \'s/^v//\' || \
+				cat ./.version 2> /dev/null || echo 0.0.0-unreleased'
 	});
 
 	return p.version();

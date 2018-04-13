@@ -29,8 +29,8 @@ module.exports = {
 	],
 	output: {
 		filename: 'kwm.js',
-		path: path.resolve(__dirname, 'dist'),
-		publicPath: '/dist/',
+		path: path.resolve(__dirname, 'umd'),
+		publicPath: '/umd/',
 		library: 'KWM',
 		libraryExport: 'KWM',
 		libraryTarget: 'umd',
@@ -77,7 +77,7 @@ module.exports = {
 			unacceptablePattern: /GPL/,
 			abortOnUnacceptableLicense: true,
 			perChunkOutput: false,
-			outputFilename: 'kwm.3rdpartylicenses.txt'
+			outputFilename: '../NOTICES.txt'
 		}),
 		new BannerPlugin(
 			fs.readFileSync(path.resolve(__dirname, 'LICENSE.txt')).toString()

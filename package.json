@@ -3,11 +3,14 @@
   "description": "Kopano Webmeetings Javascript client library",
   "author": "Kopano b.v. <info@kopano.com>",
   "license": "MIT",
-  "version": "0.4.1",
-  "main": "dist/kwm.js",
-  "scripts": {
-    "prepublish": "webpack --display-error-details --verbose"
-  },
+  "version": "0.5.0",
+  "main": "umd/kwm.js",
+  "files": [
+    "umd",
+    ".version",
+    "LICENSE.txt",
+    "NOTICES.txt"
+  ],
   "devDependencies": {
     "git-revision-webpack-plugin": "^2.5.1",
     "license-webpack-plugin": "^1.0.0",

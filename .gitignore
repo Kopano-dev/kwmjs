@@ -1,2 +1,6 @@
 /node_modules
-/dist/docs
+/dist
+/umd
+/docs
+/.version
+/NOTICES.txt

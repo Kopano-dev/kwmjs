@@ -65,7 +65,7 @@ module.exports = {
 		new UglifyJsPlugin({
 			sourceMap: true,
 			uglifyOptions: {
-				ecma: 6,
+				ecma: 8,
 				warnings: true
 			}
 		}),

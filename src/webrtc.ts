@@ -19,12 +19,12 @@ import { getRandomString } from './utils';
  * meta data.
  */
 export class PeerRecord {
-	public hash: string;
-	public initiator: boolean;
+	public hash: string = '';
+	public initiator: boolean = false;
 	public pc?: SimplePeer;
-	public ref: string;
-	public state: string;
-	public user: string;
+	public ref: string = '';
+	public state: string = '';
+	public user: string = '';
 }
 
 /**
@@ -55,7 +55,7 @@ export class WebRTCManager {
 	private kwm: KWM;
 
 	private localStream?: MediaStream;
-	private channel: string;
+	private channel: string = '';
 	private peers: Map<string, PeerRecord>;
 
 	/**

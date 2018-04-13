@@ -147,8 +147,8 @@ export class KWM {
 	private options: IKWMOptions;
 	private socket?: WebSocket;
 	private closing: boolean = false;
-	private reconnector: number;
-	private heartbeater: number;
+	private reconnector: number = 0;
+	private heartbeater: number = 0;
 	private latency: number = 0;
 	private reconnectAttempts: number = 0;
 	private replyHandlers: Map<number, IReplyTimeoutRecord>;
@@ -280,12 +280,13 @@ export class KWM {
 			};
 			const replyTimeout = KWMInit.options.heartbeatInterval / 100 * 90 ;
 			const socket = this.socket;
-			this.sendWebSocketPayload(payload, replyTimeout).then((message: IRTMTypePingPong) => {
+			this.sendWebSocketPayload(payload, replyTimeout).then((message: IRTMTypeEnvelope) => {
 				if (message.type !== 'pong') {
 					// Ignore unknow stuff.
 					return;
 				}
-				let latency = (new Date().getTime()) - message.ts;
+				const pingMessage = message as IRTMTypePingPong;
+				let latency = (new Date().getTime()) - pingMessage.ts;
 				latencyMeter.push(latency);
 				if (latencyMeter.length > 10) {
 					latencyMeter.shift();
@@ -297,10 +298,10 @@ export class KWM {
 				if (socket === this.socket && latency !== this.latency) {
 					this.latency = latency;
 				}
-				if (message.auth && this.options.authorizationType) {
-					this.options.authorizationValue = message.auth;
+				if (pingMessage.auth && this.options.authorizationType) {
+					this.options.authorizationValue = pingMessage.auth;
 				}
-			}).catch(err => {
+			}).catch((err: any) => {
 				if (socket && this.socket === socket) {
 					console.warn('heartbeat failed', err);
 					// NOTE(longsleep): Close the socket asynchronously and directly trigger a

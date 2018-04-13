@@ -58,7 +58,7 @@ export class WebRTCPeerEvent extends BaseEvent {
 	public static eventName = 'WebRTCPeerEvent';
 
 	public event: string;
-	public channel: string;
+	public channel: string = '';
 	public record: PeerRecord;
 	public details: any;
 

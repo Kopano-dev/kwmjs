@@ -18,7 +18,7 @@ all: vendor | kwm docs
 
 .PHONY: kwmjs
 kwmjs: vendor ; $(info building $@ ...) @
-	BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack --display-error-details --verbose
+	BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack --display-error-details --color --mode=production
 	echo $(VERSION) > .version
 
 .PHONY: kwm
@@ -34,7 +34,7 @@ kwm-es6: kwmjs
 
 .PHONY: kwm-dev
 kwm-dev: vendor ; $(info building and watching $@ ...) @
-	@BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack --display-error-details --progress --verbose --color --watch
+	@BUILD_VERSION=$(VERSION) BUILD_DATE=$(DATE) TARGET=$(TARGET) $(YARN) webpack --display-error-details --progress --color --mode=development --watch
 
 .PHONY: docs
 docs: vendor ; $(info building $@ ...) @

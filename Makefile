@@ -63,7 +63,9 @@ dist: ; $(info building dist tarball ...)
 .PHONY: clean
 clean: ; $(info cleaning ...) @
 	$(YARN) cache clean
-	$(YARN) clean
+	@rm -rf umd
+	@rm -f NOTICES.txt
+	@rm -f .version
 	@rm -rf node_modules
 
 .PHONY: version

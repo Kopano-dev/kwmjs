@@ -11,6 +11,7 @@
 
 'use strict';
 
+import * as URLSearchParams from 'url-search-params';
 import { KWMErrorEvent, KWMStateChangedEvent } from './events';
 import { Plugins } from './plugins';
 import { IRTMConnectResponse, IRTMDataError, IRTMTypeEnvelope, IRTMTypeEnvelopeReply, IRTMTypeError,

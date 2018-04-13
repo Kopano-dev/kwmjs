@@ -4,3 +4,15 @@
 /docs
 /.version
 /NOTICES.txt
+npm-debug.log*                                                                  
+yarn-debug.log*                                                                 
+yarn-error.log*
+
+# vim
+*.swp
+
+# misc
+.DS_Store
+.env.local
+
+

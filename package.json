@@ -23,6 +23,7 @@
     "webpack": "^3.5.5"
   },
   "dependencies": {
-    "simple-peer": "^8.1.1"
+    "simple-peer": "^8.1.1",
+    "url-search-params": "^0.10.0"
   }
 }

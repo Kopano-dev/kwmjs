@@ -28,6 +28,18 @@ export class PeerRecord {
 }
 
 /**
+ * A WebRTCOptions represents the various options which can be used with
+ * the [[WebRTCManager]].
+ */
+export class WebRTCOptions {
+	public channelConfig?: RTCDataChannelInit;
+	public channelName?: string;
+	public offerConstraints?: RTCOfferOptions;
+	public answerConstraints?: RTCAnswerOptions;
+	public sdpTransform?: (sdp: string) => string;
+}
+
+/**
  * A WebRTCManager bundles all WebRTC related client functionality and keeps
  * track of individual peer states via [[WebRTCManager]].
  */
@@ -40,6 +52,12 @@ export class WebRTCManager {
 		iceServers: [
 			{url: 'stun:stun.l.google.com:19302'},
 		],
+	};
+	/**
+	 * WebRTC PeerConnection options for all connections created by
+	 * [[WebRTCManager.getPeerConnection]]. Set as needed.
+	 */
+	public options: WebRTCOptions = {
 	};
 	/**
 	 * Event handler for [[WebRTCPeerEvent]]. Set to a function to get called
@@ -419,8 +437,9 @@ export class WebRTCManager {
 		const pc = new SimplePeer({
 			config: this.config,
 			initiator,
-			stream: this.localStream,
+			streams: [this.localStream],
 			trickle: true,
+			...this.options,
 		});
 		pc.on('error', err => {
 			if (pc !== record.pc) {

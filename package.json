@@ -12,6 +12,7 @@
     "NOTICES.txt"
   ],
   "devDependencies": {
+    "@types/webrtc": "^0.0.23",
     "git-revision-webpack-plugin": "^2.5.1",
     "license-webpack-plugin": "^1.0.0",
     "ts-loader": "^4.2.0",

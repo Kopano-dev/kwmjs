@@ -321,7 +321,9 @@ export class WebRTCManager {
 							return;
 						}
 
-						throw new Error('already have that peer: ' + message.source);
+						// TODO(longsleep): Figure out what we do in this case. For now let
+						// it pass and rely on the busy handling below.
+						console.warn('webrtc incoming call while already have that peer', message.source);
 					}
 
 					// Incoming call.

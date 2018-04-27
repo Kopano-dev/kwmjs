@@ -253,9 +253,10 @@ export class WebRTCManager {
 		this.peers.forEach((peer: PeerRecord) => {
 			if (peer.pc) {
 				console.log('xxx peer.pc removeTrack', track, stream);
-				// NOTE(longsleep): This will fail if the provided track was
-				// never added before. Do we want to catch this error here?
+				// NOTE(longsleep): This will destroy the peer connection if the
+				// track was not previously added.
 				peer.pc.removeTrack(track, stream);
+				peer.pc._needsNegotiation();
 			}
 		});
 	}

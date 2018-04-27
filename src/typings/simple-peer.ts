@@ -15,6 +15,12 @@ declare module 'simple-peer' {
 		public on(name: string, handler: (event: any) => void): void;
 		public signal(jsep: any): void;
 		public destroy(): void;
+
+		public removeStream(stream: MediaStream): void;
+		public addStream(stream: MediaStream): void;
+
+		public removeTrack(track: MediaStreamTrack, stream: MediaStream): void;
+		public addTrack(track: MediaStreamTrack, stream: MediaStream): void;
 	}
 
 	namespace Peer {}

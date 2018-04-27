@@ -191,13 +191,73 @@ export class WebRTCManager {
 
 	/**
 	 * Set the local media stream. That stream will be attached to all new
-	 * Peers which are created afterwards.
+	 * Peers which are created afterwards and added to all existing Peers
+	 * directly. If there was a stream previously attached, then that stream
+	 * is removed from all existing Peers before the new stream is added.
 	 *
-	 * @param stream MediaStream object. Do not provie this parameter to no
-	 *        longer use a local stream.
+	 * @param stream MediaStream object. Do not provide this parameter to no
+	 *        longer use a local stream and to remove it from existing Peers.
 	 */
 	public setLocalStream(stream?: MediaStream): void {
+		if (this.localStream === stream) {
+			return;
+		}
+
+		// Remember old stream for cleanup.
+		const oldStream = this.localStream;
+		// Update local stream for new Peers early.
 		this.localStream = stream;
+
+		// Update established peers as well.
+		this.peers.forEach((peer: PeerRecord) => {
+			if (peer.pc) {
+				if (oldStream) {
+					// NOTE(longsleep): This internally uses removeTracks - no need to do that ourselves.
+					peer.pc.removeStream(oldStream);
+				}
+				if (stream) {
+					// NOTE(longsleep): This internally uses addTracks  - no need to do that ourselves.
+					peer.pc.addStream(stream);
+				}
+			}
+		});
+	}
+
+	/**
+	 * Add a track from the local media stream to all existing Peers. Use this
+	 * function to trigger renegotiation after a track was added to the local
+	 * stream.
+	 */
+	public addLocalStreamTrack(track: MediaStreamTrack, stream: MediaStream): void {
+		if (this.localStream !== stream) {
+			throw new Error('wrong stream');
+		}
+
+		this.peers.forEach((peer: PeerRecord) => {
+			if (peer.pc) {
+				console.log('xxx peer.pc addTrack', track, stream);
+				peer.pc.addTrack(track, stream);
+			}
+		});
+	}
+
+	/**
+	 * Remove a track of the local media stream from all existing Peers. Use
+	 * this to trigger renegotiation after a track was removed from the stream.
+	 */
+	public removeLocalStreamTrack(track: MediaStreamTrack, stream: MediaStream): void {
+		if (this.localStream !== stream) {
+			throw new Error('wrong stream');
+		}
+
+		this.peers.forEach((peer: PeerRecord) => {
+			if (peer.pc) {
+				console.log('xxx peer.pc removeTrack', track, stream);
+				// NOTE(longsleep): This will fail if the provided track was
+				// never added before. Do we want to catch this error here?
+				peer.pc.removeTrack(track, stream);
+			}
+		});
 	}
 
 	/**

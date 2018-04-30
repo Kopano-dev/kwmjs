@@ -256,7 +256,9 @@ export class WebRTCManager {
 				// NOTE(longsleep): This will destroy the peer connection if the
 				// track was not previously added.
 				peer.pc.removeTrack(track, stream);
-				peer.pc._needsNegotiation();
+				if (peer.pc) {
+					peer.pc._needsNegotiation();
+				}
 			}
 		});
 	}

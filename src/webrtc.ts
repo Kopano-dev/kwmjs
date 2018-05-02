@@ -36,7 +36,8 @@ export class WebRTCOptions {
 	public channelName?: string;
 	public offerConstraints?: RTCOfferOptions;
 	public answerConstraints?: RTCAnswerOptions;
-	public sdpTransform?: (sdp: string) => string;
+	public localSDPTransform?: (sdp: string) => string;
+	public remoteSDPTransform?: (sdp: string) => string;
 }
 
 /**
@@ -450,6 +451,11 @@ export class WebRTCManager {
 					console.debug('created pc', pc);
 					record.pc = pc;
 				}
+
+				if (message.data && message.data.sdp && this.options.remoteSDPTransform) {
+					// Remote SDP transform support.
+					message.data.sdp = this.options.remoteSDPTransform(message.data.sdp);
+				}
 				record.pc.signal(message.data);
 
 				break;
@@ -499,12 +505,15 @@ export class WebRTCManager {
 	}
 
 	private getPeerConnection(initiator: boolean, record: PeerRecord): SimplePeer {
+		const { localSDPTransform, remoteSDPTransform, ...options } = this.options;
+
 		const pc = new SimplePeer({
 			config: this.config,
 			initiator,
+			sdpTransform: localSDPTransform,
 			streams: [this.localStream],
 			trickle: true,
-			...this.options,
+			...options,
 		});
 		pc.on('error', err => {
 			if (pc !== record.pc) {

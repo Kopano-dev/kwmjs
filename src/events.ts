@@ -80,3 +80,16 @@ export class WebRTCStreamEvent extends WebRTCPeerEvent {
 		this.stream = stream;
 	}
 }
+
+export class WebRTCStreamTrackEvent extends WebRTCPeerEvent {
+	public static eventName = 'WebRTCStreamTrackEvent';
+
+	public track: MediaStreamTrack;
+	public stream: MediaStream;
+
+	constructor(target: any, event: string, record: PeerRecord, track: MediaStreamTrack, stream: MediaStream) {
+		super(target, event, record);
+		this.track = track;
+		this.stream = stream;
+	}
+}

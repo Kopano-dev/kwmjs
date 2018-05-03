@@ -12,7 +12,7 @@ declare module 'simple-peer' {
 	class Peer {
 		constructor(options: any);
 
-		public on(name: string, handler: (event: any) => void): void;
+		public on(name: string, handler: (event: any, ...opts: any[]) => void): void;
 		public signal(jsep: any): void;
 		public destroy(): void;
 

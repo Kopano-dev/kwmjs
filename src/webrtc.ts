@@ -9,7 +9,7 @@
 'use strict';
 
 import * as SimplePeer from 'simple-peer';
-import { WebRTCPeerEvent, WebRTCStreamEvent } from './events';
+import { WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
 import { KWM } from './kwm';
 import { IRTMTypeEnvelope, IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
@@ -70,6 +70,11 @@ export class WebRTCManager {
 	 * whenever [[WebRTCStreamEvent]]s are triggered.
 	 */
 	public onstream?: (event: WebRTCStreamEvent) => void;
+	/**
+	 * Event handler for [[WebRTCStreamTrackEvent]]. Set to a function to get called
+	 * whenever [[WebRTCStreamTrackEvent]]s are triggered.
+	 */
+	public ontrack?: (event: WebRTCStreamTrackEvent) => void;
 
 	private kwm: KWM;
 
@@ -559,6 +564,14 @@ export class WebRTCManager {
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.closed', record, pc));
 			record.pc = undefined;
 		});
+		pc.on('track', (track, mediaStream) => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('peerconnection track', track, mediaStream);
+			this.dispatchEvent(new WebRTCStreamTrackEvent(this, 'pc.track', record, track, mediaStream));
+		});
 		pc.on('stream', mediaStream => {
 			if (pc !== record.pc) {
 				return;
@@ -613,6 +626,11 @@ export class WebRTCManager {
 			case WebRTCStreamEvent.getName():
 				if (this.onstream) {
 					this.onstream(event);
+				}
+				break;
+			case WebRTCStreamTrackEvent.getName():
+				if (this.ontrack) {
+					this.ontrack(event);
 				}
 				break;
 			default:

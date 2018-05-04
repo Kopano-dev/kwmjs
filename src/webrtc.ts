@@ -512,11 +512,15 @@ export class WebRTCManager {
 	private getPeerConnection(initiator: boolean, record: PeerRecord): SimplePeer {
 		const { localSDPTransform, remoteSDPTransform, ...options } = this.options;
 
+		const streams = [];
+		if (this.localStream) {
+			streams.push(this.localStream);
+		}
 		const pc = new SimplePeer({
 			config: this.config,
 			initiator,
 			sdpTransform: localSDPTransform,
-			streams: [this.localStream],
+			streams,
 			trickle: true,
 			...options,
 		});

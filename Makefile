@@ -49,10 +49,10 @@ lint: vendor ; $(info running linters ...) @
 # Yarn
 
 .PHONY: vendor
-vendor: node_modules
+vendor: .yarninstall
 
-node_modules: ; $(info retrieving dependencies ...) @
-	@$(YARN) install --silent
+.yarninstall: package.json ; $(info getting depdencies with yarn ...)   @
+	@$(YARN) install
 	@touch $@
 
 .PHONY: dist
@@ -67,6 +67,7 @@ clean: ; $(info cleaning ...) @
 	@rm -f NOTICES.txt
 	@rm -f .version
 	@rm -rf node_modules
+	@rm -f .yarninstall
 
 .PHONY: version
 version:

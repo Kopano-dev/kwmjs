@@ -242,10 +242,10 @@ export class KWM {
 
 		clearTimeout(this.reconnector);
 		clearTimeout(this.heartbeater);
-		const reconnector = (fast: boolean = false): void => {
+		const reconnector = (fast: boolean = false): Promise<void> => {
 			clearTimeout(this.reconnector);
 			if (!this.reconnecting) {
-				return;
+				return Promise.resolve();
 			}
 			let reconnectTimeout = KWMInit.options.reconnectInterval;
 			if (!fast) {
@@ -255,10 +255,12 @@ export class KWM {
 				}
 				reconnectTimeout += Math.floor(Math.random() * KWMInit.options.reconnectSpreader);
 			}
-			this.reconnector = window.setTimeout(() => {
-				this.connect(user);
-			}, reconnectTimeout);
-			this.reconnectAttempts++;
+			return new Promise<void>((resolve, reject) => {
+				this.reconnector = window.setTimeout(() => {
+					this.connect(user).then(resolve).catch(reject);
+				}, reconnectTimeout);
+				this.reconnectAttempts++;
+			});
 		};
 		const latencyMeter: number[] = [];
 		const heartbeater = (init: boolean = false): void => {
@@ -351,7 +353,7 @@ export class KWM {
 						this.dispatchStateChangedEvent();
 						this.dispatchErrorEvent(connectResult.error);
 					}
-					reconnector();
+					return reconnector().then(resolve).catch(reject);
 				} else if (connectResult.error) {
 					reject(new RTMDataError(connectResult.error));
 				} else {

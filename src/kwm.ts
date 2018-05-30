@@ -12,10 +12,12 @@
 'use strict';
 
 import * as URLSearchParams from 'url-search-params';
-import { KWMErrorEvent, KWMStateChangedEvent } from './events';
+import { KWMErrorEvent, KWMStateChangedEvent, KWMTURNServerChangedEvent } from './events';
 import { Plugins } from './plugins';
-import { IRTMConnectResponse, IRTMDataError, IRTMTypeEnvelope, IRTMTypeEnvelopeReply, IRTMTypeError,
-	IRTMTypePingPong, IRTMTypeWebRTC, RTMDataError } from './rtm';
+import {
+	IRTMConnectResponse, IRTMDataError, IRTMTURNResponse, IRTMTypeEnvelope,
+	IRTMTypeEnvelopeReply, IRTMTypeError, IRTMTypePingPong, IRTMTypeWebRTC,
+	ITURNConfig, RTMDataError } from './rtm';
 import { getRandomString, makeAbsoluteURL } from './utils';
 import { WebRTCManager } from './webrtc';
 
@@ -137,6 +139,11 @@ export class KWM {
 	 * whenever [[KWMErrorEvent]]s are triggered.
 	 */
 	public onerror?: (event: KWMErrorEvent ) => void;
+	/**
+	 * Event handler for [[KWMTURNServerChangedEvent]]. Set it to a function to
+	 * get called whenever [[KWMTURNServerChangedEvent]]s are triggered.
+	 */
+	public onturnserverchanged?: (event: KWMTURNServerChangedEvent) => void;
 
 	/**
 	 * Reference to WebRTC related functionality in KWM.
@@ -149,6 +156,7 @@ export class KWM {
 	private closing: boolean = false;
 	private reconnector: number = 0;
 	private heartbeater: number = 0;
+	private turnRefresher: number = 0;
 	private latency: number = 0;
 	private reconnectAttempts: number = 0;
 	private replyHandlers: Map<number, IReplyTimeoutRecord>;
@@ -242,6 +250,7 @@ export class KWM {
 
 		clearTimeout(this.reconnector);
 		clearTimeout(this.heartbeater);
+		clearTimeout(this.turnRefresher);
 		const reconnector = (fast: boolean = false): Promise<void> => {
 			clearTimeout(this.reconnector);
 			if (!this.reconnecting) {
@@ -319,6 +328,33 @@ export class KWM {
 				}
 			});
 		};
+		const turnRefresher = (ttl: number): void => {
+			clearTimeout(this.turnRefresher);
+			if (this.closing) {
+				return;
+			}
+			console.info(`KWM will refresh TURN settings in ${ttl} seconds`);
+			this.turnRefresher = window.setTimeout(async () => {
+				if (!this.connected || this.closing) {
+					return;
+				}
+				let turnResult: IRTMTURNResponse;
+				let authorizationHeader: string = '';
+				if (this.options.authorizationType && this.options.authorizationValue) {
+					authorizationHeader = this.options.authorizationType + ' ' + this.options.authorizationValue;
+				}
+				try {
+					turnResult = await this.rtmTURN(user, authorizationHeader);
+				} catch (err) {
+					console.warn('failed to refresh turn details, will retry', err);
+					turnRefresher(5);
+					return;
+				}
+				if (turnResult.turn) {
+					this.handleTURNConfig(turnResult.turn, turnRefresher);
+				}
+			}, ttl * 1000);
+		};
 
 		this.reconnecting = KWMInit.options.reconnectEnabled;
 		this.connecting = true;
@@ -360,6 +396,10 @@ export class KWM {
 					reject(new RTMDataError({code: 'unknown_error', msg: ''}));
 				}
 				return;
+			}
+
+			if (connectResult.turn) {
+				this.handleTURNConfig(connectResult.turn, turnRefresher);
 			}
 
 			let url = connectResult.url;
@@ -425,16 +465,26 @@ export class KWM {
 	 * Dispatch a new [[KWMStateChangedEvent]].
 	 * @private
 	 */
-	public dispatchStateChangedEvent(): void {
-		this.dispatchEvent(new KWMStateChangedEvent(this));
+	public dispatchStateChangedEvent(): KWMStateChangedEvent {
+		const e = new KWMStateChangedEvent(this);
+		this.dispatchEvent(e);
+		return e;
 	}
 
 	/**
 	 * Dispatch a new [[KWMErrorEvent]] with the provided error details.
 	 * @private
 	 */
-	public dispatchErrorEvent(err: IRTMDataError): void {
-		this.dispatchEvent(new KWMErrorEvent(this, err));
+	public dispatchErrorEvent(err: IRTMDataError): KWMErrorEvent {
+		const e = new KWMErrorEvent(this, err);
+		this.dispatchEvent(e);
+		return e;
+	}
+
+	public dispatchKWMServerChangedEvent(ttl: number, iceServer: RTCIceServer): KWMTURNServerChangedEvent {
+		const e = new KWMTURNServerChangedEvent(this, ttl, iceServer);
+		this.dispatchEvent(e);
+		return e;
 	}
 
 	/**
@@ -446,6 +496,42 @@ export class KWM {
 	 */
 	private async rtmConnect(user: string, authorizationHeader?: string): Promise<IRTMConnectResponse> {
 		const url = this.baseURI + '/api/v1/rtm.connect';
+		const headers = new Headers();
+		if (authorizationHeader) {
+			headers.set('Authorization', authorizationHeader);
+		}
+		const params = new URLSearchParams();
+		params.set('user', user);
+
+		return fetch(url, {
+			body: params,
+			headers,
+			method: 'POST',
+			mode: 'cors',
+		}).then(response => {
+			if (!response.ok) {
+				return {
+					error: {
+						code: 'http_error_' + response.status,
+						msg: response.statusText,
+					},
+					ok: false,
+				};
+			}
+
+			return response.json();
+		});
+	}
+
+	/**
+	 * Call KWM RTM rtm.turn via REST to retrieve TURN details.
+	 *
+	 * @param user The user ID.
+	 * @param authorizataionHeader Authorization HTTP request header value.
+	 * @returns Promise with the unmarshalled response data once received.
+	 */
+	private async rtmTURN(user: string, authorizationHeader?: string): Promise<IRTMTURNResponse> {
+		const url = this.baseURI + '/api/v1/rtm.turn';
 		const headers = new Headers();
 		if (authorizationHeader) {
 			headers.set('Authorization', authorizationHeader);
@@ -595,6 +681,32 @@ export class KWM {
 	}
 
 	/**
+	 * Handles server generated TURN settings.
+	 *
+	 * @param turnConfig TURN configuration.
+	 * @param refresher Callback function which gets called to register refresh.
+	 */
+	private handleTURNConfig(turnConfig?: ITURNConfig, refresher?: (ttl: number) => void): void {
+		if (turnConfig && turnConfig.uris) {
+			const turnICEServer: RTCIceServer = {
+				credential: turnConfig.password,
+				urls: turnConfig.uris,
+				username: turnConfig.username,
+			};
+			const e = this.dispatchKWMServerChangedEvent(turnConfig.ttl, turnICEServer);
+			if (!e.defaultPrevented) {
+				// Replace all configured ICE servers with the one we received.
+				this.webrtc.config.iceServers = [turnICEServer];
+			}
+
+			if (refresher && turnConfig.ttl) {
+				const ttl = turnConfig.ttl / 100 * 90;
+				refresher(ttl);
+			}
+		}
+	}
+
+	/**
 	 * Process incoming KWM RTM API Websocket payload data.
 	 *
 	 * @param event Websocket event holding payload data.
@@ -664,6 +776,11 @@ export class KWM {
 			case KWMErrorEvent.getName():
 				if (this.onerror) {
 					this.onerror(event);
+				}
+				break;
+			case KWMTURNServerChangedEvent.getName():
+				if (this.onturnserverchanged) {
+					this.onturnserverchanged(event);
 				}
 				break;
 			default:

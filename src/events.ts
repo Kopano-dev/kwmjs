@@ -18,9 +18,14 @@ export class BaseEvent {
 	}
 
 	public target: any;
+	public defaultPrevented: boolean = false;
 
 	constructor(target: any) {
 		this.target = target;
+	}
+
+	public preventDefault(): void {
+		this.defaultPrevented = true;
 	}
 }
 
@@ -37,6 +42,20 @@ export class KWMStateChangedEvent extends BaseEvent {
 		this.connecting = target.connecting;
 		this.connected = target.connected;
 		this.reconnecting = target.reconnecting;
+	}
+}
+
+export class KWMTURNServerChangedEvent extends BaseEvent {
+	public static eventName = 'KWMTURNServerChangedEvent';
+
+	public ttl: number;
+	public iceServer: RTCIceServer;
+
+	constructor(target: any, ttl: number, iceServer: RTCIceServer) {
+		super(target);
+
+		this.ttl = ttl;
+		this.iceServer = iceServer;
 	}
 }
 

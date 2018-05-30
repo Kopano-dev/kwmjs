@@ -12,6 +12,22 @@ export interface IRTMConnectResponse {
 	url?: string;
 	ok: boolean;
 	error: IRTMDataError;
+
+	turn?: ITURNConfig;
+}
+
+export interface IRTMTURNResponse {
+	ok: boolean;
+	error: IRTMDataError;
+
+	turn: ITURNConfig;
+}
+
+export interface ITURNConfig {
+	username: string;
+	password: string;
+	ttl: number;
+	uris: string[];
 }
 
 export interface IRTMDataError {

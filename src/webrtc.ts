@@ -389,8 +389,8 @@ export class WebRTCManager {
 					record.ref = message.state;
 					console.log('start webrtc, accept call reply');
 
-					const pc = this.getPeerConnection(true, record);
-					console.debug('created pc', pc);
+					const pc1 = this.getPeerConnection(true, record);
+					console.debug('created pc', pc1);
 
 					const event = new WebRTCPeerEvent(this, 'outgoingcall', record);
 					event.channel = this.channel;
@@ -452,9 +452,9 @@ export class WebRTCManager {
 
 				if (!record.pc) {
 					console.log('start webrtc, received signal');
-					const pc = this.getPeerConnection(false, record);
-					console.debug('created pc', pc);
-					record.pc = pc;
+					const pc2 = this.getPeerConnection(false, record);
+					console.debug('created pc', pc2);
+					record.pc = pc2;
 				}
 
 				if (message.data && message.data.sdp && this.options.remoteSDPTransform) {

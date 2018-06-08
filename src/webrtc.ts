@@ -10,6 +10,7 @@
 
 import * as SimplePeer from 'simple-peer';
 import { WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
+import { GroupController } from './group';
 import { KWM } from './kwm';
 import { IRTMTypeEnvelope, IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
@@ -19,6 +20,7 @@ import { getRandomString } from './utils';
  * meta data.
  */
 export class PeerRecord {
+	public group?: string = '';
 	public hash: string = '';
 	public initiator: boolean = false;
 	public pc?: SimplePeer;
@@ -77,9 +79,11 @@ export class WebRTCManager {
 	public ontrack?: (event: WebRTCStreamTrackEvent) => void;
 
 	private kwm: KWM;
+	private user?: string;
 
 	private localStream?: MediaStream;
 	private channel: string = '';
+	private group?: GroupController;
 	private peers: Map<string, PeerRecord>;
 
 	/**
@@ -164,6 +168,35 @@ export class WebRTCManager {
 		return this.channel;
 	}
 
+	public async doGroup(group: string): Promise<string> {
+		console.debug('webrtc doGroup', group);
+
+		if (this.channel) {
+			throw new Error('already have a channel');
+		}
+		if (this.group) {
+			throw new Error('already have a group');
+		}
+
+		const record = new PeerRecord();
+		record.user = group;
+		record.group = group;
+		record.state = getRandomString(12);
+
+		const reply = await this.sendWebrtc('webrtc_group', '', record, undefined, 5000) as IRTMTypeWebRTC;
+
+		if (record.hash) {
+			throw new Error('record already has a hash');
+		}
+		record.hash = reply.hash;
+
+		this.group = new GroupController(this, group, record);
+
+		this.handleWebRTCMessage(reply);
+
+		return this.channel;
+	}
+
 	/**
 	 * Triggers a WebRTC hangup request via RTM to the provided user ID. If no
 	 * user ID is given all calls will be hung up and the accociated channel
@@ -178,9 +211,14 @@ export class WebRTCManager {
 		console.log('webrtc doHangup', user);
 
 		const channel = this.channel;
+		const group = this.group;
 		if (!user) {
 			// Hangup all.
 			this.channel = '';
+			this.group = undefined;
+			if (group) {
+				this.sendHangup(channel, group.record, reason);
+			}
 			this.peers.forEach((record: PeerRecord, key: string, peers: Map<string, PeerRecord>) => {
 				this.sendHangup(channel, record, reason);
 			});
@@ -195,6 +233,70 @@ export class WebRTCManager {
 		return channel;
 	}
 
+	public doMesh(ids: string[], groupRecord: PeerRecord): Promise<string> {
+		console.log('webrtc doMesh', this.user, ids);
+		if (!this.user) {
+			throw new Error('no user');
+		}
+
+		const channel = this.channel;
+		if (!channel) {
+			throw new Error('no channel');
+		}
+
+		const added = [];
+		const removed = [];
+		const user = this.user;
+		const peers = this.peers;
+		const all = new Map<string, boolean>();
+		let ok = false;
+		for (const id of ids) {
+			if (id === user) {
+				// Ignore ourselves but set OK.
+				ok = true;
+				continue;
+			}
+			all.set(id, true);
+			if (!peers.has(id)) {
+				added.push(id);
+			}
+		}
+		if (!ok) {
+			throw new Error('mesh without self');
+		}
+		for (const entry in peers) {
+			if (!all.has(entry[0])) {
+				removed.push(entry[0]);
+			}
+		}
+
+		console.log('webrtc doMesh triggers', added, removed, all);
+
+		const promises: Array<Promise<string>> = [];
+
+		for (const id of added) {
+			const record = new PeerRecord();
+			record.user = id;
+			record.group = groupRecord.group;
+			// TODO(longsleep): Hash and refs are from the group here - find a
+			// better way to make those peer match specific.
+			record.hash = groupRecord.hash;
+			record.ref = groupRecord.group || '';
+			record.state = groupRecord.group || '';
+			this.peers.set(id, record);
+
+			if (id < user) {
+				console.log('webrtc doMesh outbound', id, record.ref, record.hash);
+				promises.push(this.doAnswer(id));
+			} else {
+				console.log('webrtc doMesh expected', id, record.state, record.hash);
+			}
+		}
+
+		return Promise.all(promises).then(() => {
+			return channel;
+		});
+	}
 	/**
 	 * Set the local media stream. That stream will be attached to all new
 	 * Peers which are created afterwards and added to all existing Peers
@@ -241,7 +343,6 @@ export class WebRTCManager {
 
 		this.peers.forEach((peer: PeerRecord) => {
 			if (peer.pc) {
-				console.log('xxx peer.pc addTrack', track, stream);
 				peer.pc.addTrack(track, stream);
 			}
 		});
@@ -258,7 +359,6 @@ export class WebRTCManager {
 
 		this.peers.forEach((peer: PeerRecord) => {
 			if (peer.pc) {
-				console.log('xxx peer.pc removeTrack', track, stream);
 				// NOTE(longsleep): This will destroy the peer connection if the
 				// track was not previously added.
 				peer.pc.removeTrack(track, stream);
@@ -299,6 +399,16 @@ export class WebRTCManager {
 		firstTrack.enabled = !mute;
 
 		return true;
+	}
+
+	/**
+	 * Process incoming hello message. Basically sets our own user.
+	 *
+	 * @private
+	 * @param user User id.
+	 */
+	public handleHello(user?: string): void {
+		this.user = user;
 	}
 
 	/**
@@ -375,8 +485,20 @@ export class WebRTCManager {
 						return;
 					}
 					if (record.hash !== message.hash) {
-						console.warn('webrtc peer data with wrong hash', record.hash);
-						return;
+						if (
+							this.group
+							&& record.group
+							&& message.group
+							&& record.group === message.group
+							&& record.group === this.group.id
+							&& message.data.accept
+							) {
+							console.debug('webrtc hash exchange peer record group hash', record.group);
+							record.hash = message.hash;
+						} else {
+							console.warn('webrtc peer data with wrong hash', record.hash, message.hash, message, record);
+							return;
+						}
 					}
 					if (!message.data.accept) {
 						console.debug('webrtc peer did not accept call', message);
@@ -399,12 +521,26 @@ export class WebRTCManager {
 				break;
 
 			case 'webrtc_channel':
-				if (this.channel) {
+				if (this.channel && message.data === undefined) {
 					console.warn('webrtc channel when already have one', this.channel, message.channel);
 					return;
 				}
 
 				this.channel = message.channel;
+
+				if (message.data) {
+					// Process extra channel data.
+					if (message.data.group && this.group) {
+						// Delegate to group controller.
+						this.group.handleWebRTCMessage(message);
+						return;
+					}
+
+					// Ignore all the unknown stuff.
+					console.debug('webrtc unknown channel data', this.channel, message.data);
+					return;
+				}
+
 				break;
 
 			case 'webrtc_hangup':
@@ -497,6 +633,7 @@ export class WebRTCManager {
 		const payload = {
 			channel,
 			data,
+			group: record.group || '',
 			hash: record.hash,
 			id: 0,
 			initiator: !!record.initiator,
@@ -541,6 +678,7 @@ export class WebRTCManager {
 			const payload = {
 				channel: this.channel,
 				data,
+				group: record.group,
 				hash: record.hash,
 				id: 0,
 				state: record.state,

@@ -63,6 +63,7 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 	initiator: boolean;
 	state: string;
 	channel: string;
+	group?: string;
 	hash: string;
 	data: any;
 }

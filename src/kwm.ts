@@ -152,6 +152,7 @@ export class KWM {
 
 	private baseURI: string;
 	private options: IKWMOptions;
+	private user?: string;
 	private socket?: WebSocket;
 	private closing: boolean = false;
 	private reconnector: number = 0;
@@ -247,6 +248,7 @@ export class KWM {
 	 */
 	public async connect(user: string): Promise<void> {
 		console.debug('KWM connect', user);
+		this.user = user;
 
 		clearTimeout(this.reconnector);
 		clearTimeout(this.heartbeater);
@@ -444,6 +446,7 @@ export class KWM {
 			}
 
 			payload.id = ++websocketSequence;
+			// console.debug('>>> payload', payload.id, payload);
 			try {
 				this.socket.send(JSON.stringify(payload));
 			} catch (err) {
@@ -743,6 +746,7 @@ export class KWM {
 		switch (message.type) {
 			case 'hello':
 				console.debug('server hello', message);
+				this.webrtc.handleHello(this.user);
 				break;
 			case 'goodbye':
 				console.debug('server goodbye, close connection', message);

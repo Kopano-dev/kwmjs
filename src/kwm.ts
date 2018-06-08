@@ -481,7 +481,11 @@ export class KWM {
 		return e;
 	}
 
-	public dispatchKWMServerChangedEvent(ttl: number, iceServer: RTCIceServer): KWMTURNServerChangedEvent {
+	/**
+	 * Dispatch a new [[KWMTURNServerChangedEvent]] with the provided details.
+	 * @private
+	 */
+	public dispatchKWMTURNServerChangedEvent(ttl: number, iceServer: RTCIceServer): KWMTURNServerChangedEvent {
 		const e = new KWMTURNServerChangedEvent(this, ttl, iceServer);
 		this.dispatchEvent(e);
 		return e;
@@ -693,7 +697,7 @@ export class KWM {
 				urls: turnConfig.uris,
 				username: turnConfig.username,
 			};
-			const e = this.dispatchKWMServerChangedEvent(turnConfig.ttl, turnICEServer);
+			const e = this.dispatchKWMTURNServerChangedEvent(turnConfig.ttl, turnICEServer);
 			if (!e.defaultPrevented) {
 				// Replace all configured ICE servers with the one we received.
 				this.webrtc.config.iceServers = [turnICEServer];

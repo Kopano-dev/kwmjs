@@ -261,11 +261,13 @@ export class WebRTCManager {
 			throw new Error('no channel');
 		}
 
-		const added = [];
-		const removed = [];
+		const added: string[] = [];
+		const removed: string[] = [];
 		const user = this.user;
 		const peers = this.peers;
 		const all = new Map<string, boolean>();
+
+		// Find new required peers.
 		let ok = false;
 		for (const id of ids) {
 			if (id === user) {
@@ -281,16 +283,24 @@ export class WebRTCManager {
 		if (!ok) {
 			throw new Error('mesh without self');
 		}
-		for (const entry in peers) {
-			if (!all.has(entry[0])) {
-				removed.push(entry[0]);
+
+		// Find obsolete peers which we have but no longer in group.
+		peers.forEach((value, key) => {
+			if (!all.has(key)) {
+				removed.push(key);
 			}
-		}
+		});
 
 		console.log('webrtc doMesh triggers', added, removed, all);
 
 		const promises: Array<Promise<string>> = [];
 
+		// Remove first.
+		for (const id of removed) {
+			promises.push(this.doHangup(id, '')); // NOTE(longsleep): Hangup without reason is a local hangup.
+		}
+
+		// Add second.
 		for (const id of added) {
 			const record = new PeerRecord();
 			record.user = id;
@@ -310,6 +320,7 @@ export class WebRTCManager {
 			}
 		}
 
+		// Wait on all.
 		return Promise.all(promises).then(() => {
 			return channel;
 		});
@@ -460,7 +471,7 @@ export class WebRTCManager {
 						if (!message.target) {
 							// Silent clear incoming call, call was taken by other connection.
 							setTimeout(() => {
-								this.sendHangup(message.channel, record, '');
+								this.sendHangup(message.channel, record, ''); // NOTE(longsleep): Hangup without reason is a local hangup.
 							}, 0);
 							return;
 						}
@@ -588,7 +599,7 @@ export class WebRTCManager {
 					console.warn('webrtc hangup with wrong state', record.ref);
 					return;
 				}
-				this.sendHangup(this.channel, record, '');
+				this.sendHangup(this.channel, record, ''); // NOTE(longsleep): Hangup without reason is a local hangup.
 
 				break;
 

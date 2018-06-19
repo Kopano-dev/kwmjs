@@ -54,6 +54,10 @@ export class GroupController {
 		}
 	}
 
+	public hasMember(user: string): boolean {
+		return this.members.indexOf(user) >= 0;
+	}
+
 	private updateMembers(members: string[]): void {
 		const previous = this.members;
 		this.members = members;

@@ -168,6 +168,13 @@ export class WebRTCManager {
 		return this.channel;
 	}
 
+	/**
+	 * Triggers group joining request via RTM to the provided group.
+	 *
+	 * @param group The group ID of the group to join.
+	 *
+	 * @returns Promise providing the channel ID assigned for this group.
+	 */
 	public async doGroup(group: string): Promise<string> {
 		console.debug('webrtc doGroup', group);
 
@@ -178,6 +185,7 @@ export class WebRTCManager {
 			throw new Error('already have a group');
 		}
 
+		// Create group record.
 		const record = new PeerRecord();
 		record.user = group;
 		record.group = group;
@@ -185,14 +193,14 @@ export class WebRTCManager {
 
 		const reply = await this.sendWebrtc('webrtc_group', '', record, undefined, 5000) as IRTMTypeWebRTC;
 
-		if (record.hash) {
-			throw new Error('record already has a hash');
-		}
+		// Set hash with value from server.
 		record.hash = reply.hash;
 
-		this.group = new GroupController(this, group, record);
+		if (!this.channel && !this.group) {
+			this.group = new GroupController(this, group, record);
 
-		this.handleWebRTCMessage(reply);
+			this.handleWebRTCMessage(reply);
+		}
 
 		return this.channel;
 	}
@@ -233,7 +241,16 @@ export class WebRTCManager {
 		return channel;
 	}
 
-	public doMesh(ids: string[], groupRecord: PeerRecord): Promise<string> {
+	/**
+	 * Triggers a WebRTC full mesh group call to the provided ids using the
+	 * provided group record..
+	 *
+	 * @param ids The Users ID of the peers to connect.
+	 * @param groupRecord peer record of the accociated group.
+	 *
+	 * @returns Promise providing the accociated channel ID.
+	 */
+	public async doMesh(ids: string[], groupRecord: PeerRecord): Promise<string> {
 		console.log('webrtc doMesh', this.user, ids);
 		if (!this.user) {
 			throw new Error('no user');
@@ -408,7 +425,16 @@ export class WebRTCManager {
 	 * @param user User id.
 	 */
 	public handleHello(user?: string): void {
+		if (user !== this.user && this.channel) {
+			console.warn('webrtc user changed, hangup', this.user, user);
+			this.doHangup();
+		}
+
 		this.user = user;
+
+		if (user && this.group && this.group.hasMember(user)) {
+			this.refreshGroup(this.group);
+		}
 	}
 
 	/**
@@ -601,6 +627,29 @@ export class WebRTCManager {
 
 				break;
 		}
+	}
+
+	private async refreshGroup(group: GroupController): Promise<string> {
+		if (!this.group || group !== this.group) {
+			throw new Error('invalid group');
+		}
+
+		// Update group record.
+		const record = group.record;
+		record.state = getRandomString(12);
+
+		const reply = await this.sendWebrtc('webrtc_group', '', record, undefined, 5000) as IRTMTypeWebRTC;
+
+		// Refresh hash with value from server.
+		record.hash = reply.hash;
+
+		if (this.channel === group.channel && group.channel === reply.channel) {
+			this.group = group;
+
+			this.handleWebRTCMessage(reply);
+		}
+
+		return this.channel;
 	}
 
 	private async sendHangup(channel: string, record: PeerRecord, reason: string = 'hangup'): Promise<boolean> {

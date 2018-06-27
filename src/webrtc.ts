@@ -593,7 +593,7 @@ export class WebRTCManager {
 
 				break;
 
-			case 'webrtc_hangup':
+			case 'webrtc_hangup': {
 				if (!message.channel || this.channel !== message.channel) {
 					console.warn('webrtc hangup with wrong channel', this.channel, message.channel);
 					return;
@@ -614,7 +614,12 @@ export class WebRTCManager {
 				}
 				this.sendHangup(this.channel, record, ''); // NOTE(longsleep): Hangup without reason is a local hangup.
 
+				const event = new WebRTCPeerEvent(this, 'hangup', record, message.data);
+				event.channel = message.channel;
+				this.dispatchEvent(event, true);
+
 				break;
+			}
 
 			case 'webrtc_signal':
 				if (!message.channel || this.channel !== message.channel) {

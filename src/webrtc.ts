@@ -48,6 +48,15 @@ export class WebRTCOptions {
  */
 export class WebRTCManager {
 	/**
+	 * WebRTC payload version. All WebRTC payloads will include this value and
+	 * clients can use it to check if they are compatible with the received
+	 * data. This client will reject all messages which are from received with
+	 * older version than defined here. Also the server might reject messages
+	 * for versions deemed too old.
+	 */
+	public static version = 20180703;
+
+	/**
 	 * WebRTC PeerConnection config for all connections created by
 	 * [[WebRTCManager.getPeerConnection]]. Overwrite as needed.
 	 */
@@ -285,9 +294,12 @@ export class WebRTCManager {
 		}
 
 		// Find obsolete peers which we have but no longer in group.
-		peers.forEach((value, key) => {
-			if (!all.has(key)) {
-				removed.push(key);
+		peers.forEach((record, id) => {
+			if (!all.has(id)) {
+				removed.push(id);
+			} else if (!record.pc || record.pc.destroyed) {
+				// Bring back dead connections.
+				added.push(id);
 			}
 		});
 
@@ -312,12 +324,8 @@ export class WebRTCManager {
 			record.state = groupRecord.group || '';
 			this.peers.set(id, record);
 
-			if (this.computeInitiator(id)) {
-				console.log('webrtc doMesh outbound', id, record.ref, record.hash);
-				promises.push(this.doAnswer(id));
-			} else {
-				console.log('webrtc doMesh expected', id, record.state, record.hash);
-			}
+			console.log('webrtc doMesh outbound', id, record.ref, record.hash);
+			promises.push(this.doAnswer(id));
 		}
 
 		// Wait on all.
@@ -457,6 +465,11 @@ export class WebRTCManager {
 	public handleWebRTCMessage(message: IRTMTypeWebRTC): void {
 		// console.debug('<<< webrtc', message);
 		let record: PeerRecord;
+
+		if (!message.v || message.v < WebRTCManager.version) {
+			console.log('webrtc ignoring message with outdated version', message.v, message);
+			return;
+		}
 
 		switch (message.subtype) {
 			case 'webrtc_call':
@@ -701,6 +714,7 @@ export class WebRTCManager {
 			subtype,
 			target: record.user,
 			type: 'webrtc',
+			v: WebRTCManager.version,
 		};
 
 		return this.kwm.sendWebSocketPayload(payload, replyTimeout = replyTimeout);
@@ -758,6 +772,7 @@ export class WebRTCManager {
 				subtype: 'webrtc_signal',
 				target: record.user,
 				type: 'webrtc',
+				v: WebRTCManager.version,
 			};
 			// console.debug('>>> send signal', payload);
 			this.kwm.sendWebSocketPayload(payload);

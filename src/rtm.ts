@@ -66,6 +66,7 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 	group?: string;
 	hash: string;
 	data: any;
+	v: number;
 }
 
 export class RTMDataError {

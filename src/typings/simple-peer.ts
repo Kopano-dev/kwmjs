@@ -10,6 +10,10 @@
 
 declare module 'simple-peer' {
 	class Peer {
+		public destroyed: boolean;
+		public connected: boolean;
+		public initiator: boolean;
+
 		constructor(options: any);
 
 		public on(name: string, handler: (event: any, ...opts: any[]) => void): void;

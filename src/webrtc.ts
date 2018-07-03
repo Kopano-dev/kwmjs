@@ -312,7 +312,7 @@ export class WebRTCManager {
 			record.state = groupRecord.group || '';
 			this.peers.set(id, record);
 
-			if (id < user) {
+			if (this.computeInitiator(id)) {
 				console.log('webrtc doMesh outbound', id, record.ref, record.hash);
 				promises.push(this.doAnswer(id));
 			} else {
@@ -548,7 +548,7 @@ export class WebRTCManager {
 					record.ref = message.state;
 					console.log('start webrtc, accept call reply');
 
-					const pc1 = this.getPeerConnection(true, record);
+					const pc1 = this.getPeerConnection(this.computeInitiator(record.user), record);
 					console.debug('created pc', pc1);
 
 					const event = new WebRTCPeerEvent(this, 'outgoingcall', record);
@@ -625,7 +625,7 @@ export class WebRTCManager {
 
 				if (!record.pc) {
 					console.log('start webrtc, received signal');
-					const pc2 = this.getPeerConnection(false, record);
+					const pc2 = this.getPeerConnection(this.computeInitiator(record.user), record);
 					console.debug('created pc', pc2);
 					record.pc = pc2;
 				}
@@ -728,6 +728,19 @@ export class WebRTCManager {
 
 			console.debug('peerconnection error', err);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.error', record, err));
+
+			// TODO(longsleep): Add handler for auto recovery / create new pc
+			// in record and start signaling again.
+			setTimeout(() => {
+				if (record.pc !== undefined && pc !== record.pc) {
+					return;
+				}
+
+				console.debug('peerconnection auto reconnect after error');
+				record.pc = undefined;
+				// NOTE(longsleep): Possible race when both sides errored.
+				const newpc = this.getPeerConnection(this.computeInitiator(record.user), record);
+			}, 500);
 		});
 		pc.on('signal', data => {
 			if (pc !== record.pc) {
@@ -838,5 +851,21 @@ export class WebRTCManager {
 			default:
 				throw new Error('unknown event: ' + event.constructor.getName());
 		}
+	}
+
+	/**
+	 * Compute intiiator flag based on the accociated user id compared to the
+	 * provided user id.
+	 *
+	 * @param id User Id to be compared.
+	 */
+	private computeInitiator(id: string): boolean {
+		const user = this.user;
+
+		if (!user) {
+			return false;
+		}
+
+		return user < id ? false : true;
 	}
 }

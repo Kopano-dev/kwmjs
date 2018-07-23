@@ -52,6 +52,15 @@ kwm.connect('userB').then(() => {
 });
 ```
 
+### Debugging
+
+Type in the following in the browser console to enable WebRTC debugging.
+
+```
+localStorage.debug = 'simple-peer'
+```
+
+
 ## License
 
 See `LICENSE.txt` for licensing information of this project.

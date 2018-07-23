@@ -6,7 +6,7 @@
     "lib": [ "DOM", "ES2015" ],               /* Specify library files to be included in the compilation:  */
     // "allowJs": true,                       /* Allow javascript files to be compiled. */
     // "checkJs": true,                       /* Report errors in .js files. */
-    "declaration": false,                     /* Generates corresponding '.d.ts' file. */
+    "declaration": true,                     /* Generates corresponding '.d.ts' file. */
     "sourceMap": true,                        /* Generates corresponding '.map' file. */
     // "outFile": "./",                       /* Concatenate and emit output to single file. */
     // "outDir": "./",                        /* Redirect output structure to the directory. */
@@ -18,7 +18,7 @@
     // "isolatedModules": true,               /* Transpile each file as a separate module (similar to 'ts.transpileModule'). */
 
     /* Strict Type-Checking Options */
-    "strict": true                            /* Enable all strict type-checking options. */
+    "strict": true,                           /* Enable all strict type-checking options. */
     // "noImplicitAny": true,                 /* Raise error on expressions and declarations with an implied 'any' type. */
     // "strictNullChecks": true,              /* Enable strict null checks. */
     // "noImplicitThis": true,                /* Raise error on 'this' expressions with an implied 'any' type. */
@@ -48,5 +48,6 @@
     /* Experimental Options */
     // "experimentalDecorators": true,        /* Enables experimental support for ES7 decorators. */
     // "emitDecoratorMetadata": true,         /* Enables experimental support for emitting type metadata for decorators. */
-  }
+  },
+  "exclude": ["node_modules", "umd"],
 }

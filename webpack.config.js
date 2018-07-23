@@ -25,7 +25,7 @@ module.exports = {
 		extensions: ['.ts', '.js']
 	},
 	entry: [
-		__dirname + '/src/kwm.ts'
+		__dirname + '/src/index.ts'
 	],
 	output: {
 		filename: 'kwm.js',

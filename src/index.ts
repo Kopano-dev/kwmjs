@@ -43,8 +43,12 @@ export {
 
 export {
 	PeerRecord,
+	IWebRTCManagerContainer,
+	WebRTCBaseManager,
 	WebRTCOptions,
 	WebRTCManager,
 } from './webrtc';
+
+export const version = KWM.version;
 
 export default KWM;

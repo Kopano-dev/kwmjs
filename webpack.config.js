@@ -32,7 +32,6 @@ module.exports = {
 		path: path.resolve(__dirname, 'umd'),
 		publicPath: '/umd/',
 		library: 'KWM',
-		libraryExport: 'KWM',
 		libraryTarget: 'umd',
 		umdNamedDefine: true
 	},

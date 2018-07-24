@@ -5,7 +5,7 @@
   "license": "MIT",
   "version": "0.8.0",
   "main": "umd/kwm.js",
-  "types": "umd/src/kwm.d.ts",
+  "types": "umd/src/index.d.ts",
   "files": [
     "umd",
     ".version",

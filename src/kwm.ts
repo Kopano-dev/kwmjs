@@ -19,7 +19,7 @@ import {
 	IRTMTypeEnvelopeReply, IRTMTypeError, IRTMTypePingPong, IRTMTypeWebRTC,
 	ITURNConfig, RTMDataError } from './rtm';
 import { getRandomString, makeAbsoluteURL } from './utils';
-import { WebRTCManager } from './webrtc';
+import { IWebRTCManagerContainer, PeerRecord, WebRTCManager } from './webrtc';
 
 /**
  * The sequence counter for sent websocket message payloads. It is automatically
@@ -106,13 +106,8 @@ export class KWMInit {
  * KWM is the main Kopano Web Meetings Javascript library entry point. It holds
  * the status and connections to KWM.
  */
-export class KWM {
+export class KWM implements IWebRTCManagerContainer {
 	public static version: string = __VERSION__;
-
-	/**
-	 * Alternative constructor which provides asynchrous callbacks.
-	 */
-	public static KWMInit: KWMInit = KWMInit;
 
 	/**
 	 * Boolean flag wether KWM is currently trying to establish a connection.
@@ -438,7 +433,10 @@ export class KWM {
 	 * @returns Promise which resolves when the reply was received or immediately
 	 *          when no timeout was given.
 	 */
-	public async sendWebSocketPayload(payload: IRTMTypeEnvelope, replyTimeout: number = 0): Promise<IRTMTypeEnvelope> {
+	public async sendWebSocketPayload(
+		payload: IRTMTypeEnvelope,
+		replyTimeout: number = 0,
+		record?: PeerRecord): Promise<IRTMTypeEnvelope> {
 		return new Promise<IRTMTypeEnvelope>((resolve, reject) => {
 			if (!this.connected || !this.socket || this.closing) {
 				reject(new Error('no_connection'));

@@ -11,7 +11,6 @@
 import * as SimplePeer from 'simple-peer';
 import { WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
 import { GroupController } from './group';
-import { KWM } from './kwm';
 import { IRTMTypeEnvelope, IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
 
@@ -20,6 +19,7 @@ import { getRandomString } from './utils';
  * meta data.
  */
 export class PeerRecord {
+	public extra?: any;
 	public group?: string = '';
 	public hash: string = '';
 	public initiator: boolean = false;
@@ -43,10 +43,18 @@ export class WebRTCOptions {
 }
 
 /**
- * A WebRTCManager bundles all WebRTC related client functionality and keeps
+ * A IWebRTCManagerContainer is a container which connects WebRTCManagers with
+ * the ouside world.
+ */
+export interface IWebRTCManagerContainer {
+	sendWebSocketPayload(payload: IRTMTypeEnvelope, replyTimeout?: number, record?: PeerRecord): Promise<IRTMTypeEnvelope>;
+}
+
+/**
+ * A WebRTCBaseManager bundles all WebRTC related client functionality and keeps
  * track of individual peer states via [[WebRTCManager]].
  */
-export class WebRTCManager {
+export class WebRTCBaseManager {
 	/**
 	 * WebRTC payload version. All WebRTC payloads will include this value and
 	 * clients can use it to check if they are compatible with the received
@@ -87,24 +95,177 @@ export class WebRTCManager {
 	 */
 	public ontrack?: (event: WebRTCStreamTrackEvent) => void;
 
-	private kwm: KWM;
-	private user?: string;
+	protected kwm: IWebRTCManagerContainer;
 
-	private localStream?: MediaStream;
-	private channel: string = '';
-	private group?: GroupController;
-	private peers: Map<string, PeerRecord>;
+	protected localStream?: MediaStream;
+	protected user?: string;
+	protected channel: string = '';
+	protected group?: GroupController;
+	protected peers: Map<string, PeerRecord>;
 
 	/**
 	 * Creates WebRTCManager instance bound to the provided [[KWM]].
 	 *
-	 * @param kwm Reference to KWM instance.
+	 * @param container Reference to a IWebRTCManagerContainer instance.
 	 */
-	constructor(kwm: KWM) {
+	constructor(kwm: IWebRTCManagerContainer) {
 		this.kwm = kwm;
 		this.peers = new Map<string, PeerRecord>();
 	}
 
+	protected getPeerConnection(initiator: boolean, record: PeerRecord): SimplePeer {
+		const { localSDPTransform, remoteSDPTransform, ...options } = this.options;
+
+		const streams = [];
+		if (this.localStream) {
+			streams.push(this.localStream);
+		}
+		const pc = new SimplePeer({
+			config: this.config,
+			initiator,
+			sdpTransform: localSDPTransform,
+			streams,
+			trickle: true,
+			...options,
+		});
+		pc.on('error', err => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('peerconnection error', err);
+			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.error', record, err));
+
+			// TODO(longsleep): Add handler for auto recovery / create new pc
+			// in record and start signaling again.
+			setTimeout(() => {
+				if (record.pc !== undefined && pc !== record.pc) {
+					return;
+				}
+
+				console.debug('peerconnection auto reconnect after error');
+				record.pc = undefined;
+				// NOTE(longsleep): Possible race when both sides errored.
+				const newpc = this.getPeerConnection(initiator, record);
+			}, 500);
+		});
+		pc.on('signal', data => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('peerconnection signal', data);
+			const payload = {
+				channel: this.channel,
+				data,
+				group: record.group,
+				hash: record.hash,
+				id: 0,
+				state: record.state,
+				subtype: 'webrtc_signal',
+				target: record.user,
+				type: 'webrtc',
+				v: WebRTCManager.version,
+			};
+			// console.debug('>>> send signal', payload);
+			this.kwm.sendWebSocketPayload(payload, undefined, record);
+		});
+		pc.on('connect', () => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('peerconnection connect');
+			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.connect', record, pc));
+		});
+		pc.on('close', () => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.log('peerconnection close');
+			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.closed', record, pc));
+			record.pc = undefined;
+		});
+		pc.on('track', (track, mediaStream) => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('peerconnection track', track, mediaStream);
+			this.dispatchEvent(new WebRTCStreamTrackEvent(this, 'pc.track', record, track, mediaStream));
+		});
+		pc.on('stream', mediaStream => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('peerconnection stream', mediaStream);
+			this.dispatchEvent(new WebRTCStreamEvent(this, 'pc.stream', record, mediaStream));
+		});
+		pc.on('iceStateChange', state => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('iceStateChange', state);
+			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.iceStateChange', record, state));
+		});
+		pc.on('signalingStateChange', state => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('signalingStateChange', state);
+			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.signalingStateChange', record, state));
+		});
+
+		record.pc = pc;
+		return pc;
+	}
+
+	/**
+	 * Generic event dispatcher. Dispatches callback functions based on event
+	 * types. Throws error for unknown event types. If a known event type has no
+	 * event handler registered, dispatchEvent does nothing.
+	 *
+	 * @param event Event to be dispatched.
+	 * @param async Boolean value if the event should trigger asynchronously.
+	 */
+	protected dispatchEvent(event: any, async?: boolean): void {
+		if (async) {
+			setTimeout(() => {
+				this.dispatchEvent(event, false);
+			}, 0);
+			return;
+		}
+
+		switch (event.constructor.getName()) {
+			case WebRTCPeerEvent.getName():
+				if (this.onpeer) {
+					this.onpeer(event);
+				}
+				break;
+			case WebRTCStreamEvent.getName():
+				if (this.onstream) {
+					this.onstream(event);
+				}
+				break;
+			case WebRTCStreamTrackEvent.getName():
+				if (this.ontrack) {
+					this.ontrack(event);
+				}
+				break;
+			default:
+				throw new Error('unknown event: ' + event.constructor.getName());
+		}
+	}
+}
+
+/**
+ * A WebRTCManager bundles all WebRTC action for client side calling.
+ */
+export class WebRTCManager extends WebRTCBaseManager {
 	/**
 	 * Triggers a WebRTC call request via RTM to the provided user.
 	 *
@@ -561,7 +722,7 @@ export class WebRTCManager {
 					record.ref = message.state;
 					console.log('start webrtc, accept call reply');
 
-					const pc1 = this.getPeerConnection(this.computeInitiator(record.user), record);
+					const pc1 = this.getPeerConnection(this.computeInitiator(record), record);
 					console.debug('created pc', pc1);
 
 					const event = new WebRTCPeerEvent(this, 'outgoingcall', record);
@@ -638,12 +799,13 @@ export class WebRTCManager {
 				}
 				if (record.ref !== message.state && record.ref) {
 					console.warn('webrtc signal with wrong state', record.ref);
-					return;
+					// XXX(longsleep): Protection disabled for MCU.
+					// return;
 				}
 
 				if (!record.pc) {
 					console.log('start webrtc, received signal');
-					const pc2 = this.getPeerConnection(this.computeInitiator(record.user), record);
+					const pc2 = this.getPeerConnection(this.computeInitiator(record), record);
 					console.debug('created pc', pc2);
 					record.pc = pc2;
 				}
@@ -658,7 +820,7 @@ export class WebRTCManager {
 		}
 	}
 
-	private async refreshGroup(group: GroupController): Promise<string> {
+	protected async refreshGroup(group: GroupController): Promise<string> {
 		if (!this.group || group !== this.group) {
 			throw new Error('invalid group');
 		}
@@ -681,7 +843,7 @@ export class WebRTCManager {
 		return this.channel;
 	}
 
-	private async sendHangup(channel: string, record: PeerRecord, reason: string = 'hangup'): Promise<boolean> {
+	protected async sendHangup(channel: string, record: PeerRecord, reason: string = 'hangup'): Promise<boolean> {
 		this.peers.delete(record.user);
 		if (record.pc) {
 			record.pc.destroy();
@@ -705,7 +867,7 @@ export class WebRTCManager {
 		}
 	}
 
-	private async sendWebrtc(
+	protected async sendWebrtc(
 		subtype: string, channel: string, record: PeerRecord,
 		data?: any, replyTimeout: number = 0): Promise<IRTMTypeEnvelope> {
 		const payload = {
@@ -722,155 +884,7 @@ export class WebRTCManager {
 			v: WebRTCManager.version,
 		};
 
-		return this.kwm.sendWebSocketPayload(payload, replyTimeout = replyTimeout);
-	}
-
-	private getPeerConnection(initiator: boolean, record: PeerRecord): SimplePeer {
-		const { localSDPTransform, remoteSDPTransform, ...options } = this.options;
-
-		const streams = [];
-		if (this.localStream) {
-			streams.push(this.localStream);
-		}
-		const pc = new SimplePeer({
-			config: this.config,
-			initiator,
-			sdpTransform: localSDPTransform,
-			streams,
-			trickle: true,
-			...options,
-		});
-		pc.on('error', err => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.debug('peerconnection error', err);
-			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.error', record, err));
-
-			// TODO(longsleep): Add handler for auto recovery / create new pc
-			// in record and start signaling again.
-			setTimeout(() => {
-				if (record.pc !== undefined && pc !== record.pc) {
-					return;
-				}
-
-				console.debug('peerconnection auto reconnect after error');
-				record.pc = undefined;
-				// NOTE(longsleep): Possible race when both sides errored.
-				const newpc = this.getPeerConnection(this.computeInitiator(record.user), record);
-			}, 500);
-		});
-		pc.on('signal', data => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.debug('peerconnection signal', data);
-			const payload = {
-				channel: this.channel,
-				data,
-				group: record.group,
-				hash: record.hash,
-				id: 0,
-				state: record.state,
-				subtype: 'webrtc_signal',
-				target: record.user,
-				type: 'webrtc',
-				v: WebRTCManager.version,
-			};
-			// console.debug('>>> send signal', payload);
-			this.kwm.sendWebSocketPayload(payload);
-		});
-		pc.on('connect', () => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.debug('peerconnection connect');
-			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.connect', record, pc));
-		});
-		pc.on('close', () => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.log('peerconnection close');
-			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.closed', record, pc));
-			record.pc = undefined;
-		});
-		pc.on('track', (track, mediaStream) => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.debug('peerconnection track', track, mediaStream);
-			this.dispatchEvent(new WebRTCStreamTrackEvent(this, 'pc.track', record, track, mediaStream));
-		});
-		pc.on('stream', mediaStream => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.debug('peerconnection stream', mediaStream);
-			this.dispatchEvent(new WebRTCStreamEvent(this, 'pc.stream', record, mediaStream));
-		});
-		pc.on('iceStateChange', state => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.debug('iceStateChange', state);
-			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.iceStateChange', record, state));
-		});
-		pc.on('signalingStateChange', state => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.debug('signalingStateChange', state);
-			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.signalingStateChange', record, state));
-		});
-
-		record.pc = pc;
-		return pc;
-	}
-
-	/**
-	 * Generic event dispatcher. Dispatches callback functions based on event
-	 * types. Throws error for unknown event types. If a known event type has no
-	 * event handler registered, dispatchEvent does nothing.
-	 *
-	 * @param event Event to be dispatched.
-	 * @param async Boolean value if the event should trigger asynchronously.
-	 */
-	private dispatchEvent(event: any, async?: boolean): void {
-		if (async) {
-			setTimeout(() => {
-				this.dispatchEvent(event, false);
-			}, 0);
-			return;
-		}
-
-		switch (event.constructor.getName()) {
-			case WebRTCPeerEvent.getName():
-				if (this.onpeer) {
-					this.onpeer(event);
-				}
-				break;
-			case WebRTCStreamEvent.getName():
-				if (this.onstream) {
-					this.onstream(event);
-				}
-				break;
-			case WebRTCStreamTrackEvent.getName():
-				if (this.ontrack) {
-					this.ontrack(event);
-				}
-				break;
-			default:
-				throw new Error('unknown event: ' + event.constructor.getName());
-		}
+		return this.kwm.sendWebSocketPayload(payload,  replyTimeout, record);
 	}
 
 	/**
@@ -879,13 +893,13 @@ export class WebRTCManager {
 	 *
 	 * @param id User Id to be compared.
 	 */
-	private computeInitiator(id: string): boolean {
+	protected computeInitiator(record: PeerRecord): boolean {
 		const user = this.user;
 
 		if (!user) {
 			return false;
 		}
 
-		return user < id ? false : true;
+		return user < record.user ? false : true;
 	}
 }

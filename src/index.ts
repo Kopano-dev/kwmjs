@@ -16,6 +16,8 @@ export {
 	IKWMOptions,
 	IReplyTimeoutRecord,
 	KWMInit,
+	authorizationTypeToken,
+	authorizationTypeBearer,
 } from './kwm';
 import { KWM } from './kwm';
 export {

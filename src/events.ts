@@ -8,7 +8,6 @@
 
 'use strict';
 
-import { KWM } from './kwm';
 import { PeerRecord } from './webrtc';
 
 export class BaseEvent {

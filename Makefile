@@ -38,7 +38,7 @@ kwm-dev: vendor ; $(info building and watching $@ ...) @
 
 .PHONY: docs
 docs: vendor ; $(info building $@ ...) @
-	@$(YARN) typedoc -- --out ./docs --hideGenerator --excludePrivate --readme ./doc/USAGE.md --name 'Kopano Webmeetings Javascript Client Library $(VERSION)' --mode file --theme minimal --target ES5 ./src
+	@$(YARN) typedoc -- --out ./docs --hideGenerator --excludePrivate --name 'Kopano Webmeetings Javascript Client Library $(VERSION)' --mode file --theme minimal --target ES5 ./src
 
 # Helpers
 

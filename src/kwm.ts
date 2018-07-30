@@ -18,7 +18,7 @@ import {
 	IRTMConnectResponse, IRTMDataError, IRTMTURNResponse, IRTMTypeEnvelope,
 	IRTMTypeEnvelopeReply, IRTMTypeError, IRTMTypePingPong, IRTMTypeWebRTC,
 	ITURNConfig, RTMDataError } from './rtm';
-import { getRandomString, makeAbsoluteURL } from './utils';
+import { makeAbsoluteURL } from './utils';
 import { IWebRTCManagerContainer, PeerRecord, WebRTCManager } from './webrtc';
 
 /**
@@ -28,8 +28,8 @@ import { IWebRTCManagerContainer, PeerRecord, WebRTCManager } from './webrtc';
  */
 let websocketSequence = 0;
 
-const authorizationTypeToken = 'Token';
-const authorizationTypeBearer = 'Bearer';
+export const authorizationTypeToken = 'Token';
+export const authorizationTypeBearer = 'Bearer';
 
 export interface IKWMOptions {
 	authorizationType?: string;
@@ -430,6 +430,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @param payload The payload data.
 	 * @param replyTimeout Timeout in milliseconds for reply callback. If 0,
 	 *        then no callback is expected and none is registered.
+	 * @param record Record of the payloads target peer.
 	 * @returns Promise which resolves when the reply was received or immediately
 	 *          when no timeout was given.
 	 */

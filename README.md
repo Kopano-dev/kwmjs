@@ -25,7 +25,7 @@ Then to view the docs, open `dist/docs/index.html` in a browser of your choice.
 ### Create a new call
 
 ```javascript
-const kwm = new KWM();
+const kwm = new kwmjs.KWM();
 kwm.connect('userA').then(() => {
         // Connected, ready to call.
         return kwm.webrtc.doCall('userB');
@@ -37,7 +37,7 @@ kwm.connect('userA').then(() => {
 ### Accept an incoming call
 
 ```javascript
-const kwm = new KWM();
+const kwm = new kwmjs.KWM();
 kwm.webrtc.onpeer = event => {
         switch (event.event) {
                 case 'incomingcall':

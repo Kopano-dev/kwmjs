@@ -798,9 +798,8 @@ export class WebRTCManager extends WebRTCBaseManager {
 					return;
 				}
 				if (record.ref !== message.state && record.ref) {
-					console.warn('webrtc signal with wrong state', record.ref);
-					// XXX(longsleep): Protection disabled for MCU.
-					// return;
+					console.warn('webrtc signal with wrong state', record.ref, message.state);
+					return;
 				}
 
 				if (!record.pc) {

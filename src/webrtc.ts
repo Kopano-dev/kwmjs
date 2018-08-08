@@ -11,7 +11,7 @@
 import * as SimplePeer from 'simple-peer';
 import { WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
 import { GroupController } from './group';
-import { IRTMTypeEnvelope, IRTMTypeWebRTC } from './rtm';
+import { IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
 
 /**
@@ -27,6 +27,7 @@ export class PeerRecord {
 	public ref: string = '';
 	public state: string = '';
 	public user: string = '';
+	public cid: string = '';
 }
 
 /**
@@ -40,6 +41,10 @@ export class WebRTCOptions {
 	public answerConstraints?: RTCAnswerOptions;
 	public localSDPTransform?: (sdp: string) => string;
 	public remoteSDPTransform?: (sdp: string) => string;
+}
+
+export class ChannelOptions {
+	public localStreamTarget?: PeerRecord;
 }
 
 /**
@@ -100,6 +105,7 @@ export class WebRTCBaseManager {
 	protected localStream?: MediaStream;
 	protected user?: string;
 	protected channel: string = '';
+	protected channelOptions: ChannelOptions = {};
 	protected group?: GroupController;
 	protected peers: Map<string, PeerRecord>;
 
@@ -113,11 +119,16 @@ export class WebRTCBaseManager {
 		this.peers = new Map<string, PeerRecord>();
 	}
 
+	protected setChannelOptions(options: ChannelOptions): ChannelOptions {
+		Object.assign(this.channelOptions, options);
+		return this.channelOptions;
+	}
+
 	protected getPeerConnection(initiator: boolean, record: PeerRecord): SimplePeer {
 		const { localSDPTransform, remoteSDPTransform, ...options } = this.options;
 
 		const streams = [];
-		if (this.localStream) {
+		if (this.isLocalStreamTarget(record) && this.localStream) {
 			streams.push(this.localStream);
 		}
 		const pc = new SimplePeer({
@@ -222,6 +233,17 @@ export class WebRTCBaseManager {
 
 		record.pc = pc;
 		return pc;
+	}
+
+	/**
+	 * Compute wether or not the provided record is the target which should
+	 * be used for local streams for the accociated manager. If the local
+	 * stream target is not set, all records are local stream target.
+	 */
+	protected isLocalStreamTarget(record: PeerRecord): boolean {
+		const { localStreamTarget } = this.channelOptions;
+
+		return !localStreamTarget || localStreamTarget === record;
 	}
 
 	/**
@@ -393,6 +415,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 		if (!user) {
 			// Hangup all.
 			this.channel = '';
+			this.channelOptions = {};
 			this.group = undefined;
 			if (group) {
 				this.sendHangup(channel, group.record, reason);
@@ -456,6 +479,10 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 		// Find obsolete peers which we have but no longer in group.
 		peers.forEach((record, id) => {
+			if (record.cid !== '') {
+				// Normal peers only for mesh.
+				return;
+			}
 			if (!all.has(id)) {
 				removed.push(id);
 			} else if (!record.pc || record.pc.destroyed) {
@@ -514,8 +541,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 		this.localStream = stream;
 
 		// Update established peers as well.
+		const channelOptions = this.channelOptions;
 		this.peers.forEach((peer: PeerRecord) => {
-			if (peer.pc) {
+			if (this.isLocalStreamTarget(peer) && peer.pc) {
 				if (oldStream) {
 					// NOTE(longsleep): This internally uses removeTracks - no need to do that ourselves.
 					peer.pc.removeStream(oldStream);
@@ -677,6 +705,10 @@ export class WebRTCManager extends WebRTCBaseManager {
 						return;
 					}
 
+					if (message.data) {
+						this.handleWebRTCExtraChannelData(message);
+					}
+
 					this.channel = message.channel;
 					this.peers.set(message.source, record);
 
@@ -740,16 +772,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 				this.channel = message.channel;
 
 				if (message.data) {
-					// Process extra channel data.
-					if (message.data.group && this.group) {
-						// Delegate to group controller.
-						this.group.handleWebRTCMessage(message);
-						return;
-					}
-
-					// Ignore all the unknown stuff.
-					console.debug('webrtc unknown channel data', this.channel, message.data);
-					return;
+					this.handleWebRTCExtraChannelData(message);
 				}
 
 				break;
@@ -794,7 +817,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 				record = this.peers.get(message.source) as PeerRecord;
 				if (!record) {
-					console.warn('webrtc signal for unknown peer');
+					console.warn('webrtc signal for unknown peer', message.source, this.peers);
 					return;
 				}
 				if (record.ref !== message.state && record.ref) {
@@ -816,6 +839,58 @@ export class WebRTCManager extends WebRTCBaseManager {
 				record.pc.signal(message.data);
 
 				break;
+		}
+	}
+
+	/**
+	 * Process incoming KWM RTM API WebRTC extra channel data.
+	 *
+	 * @private
+	 * @param message Payload message.
+	 */
+	public handleWebRTCExtraChannelData(message: IRTMTypeWebRTC): void {
+		console.debug('<<< webrtc extra channel data', message);
+
+		const data = message.data as IRTMDataWebRTCChannelExtra;
+		if (!data) {
+			return;
+		}
+
+		// Process group data.
+		if (data.group && this.group) {
+			// Delegate to group controller.
+			this.group.handleWebRTCMessage(message);
+		}
+
+		// Process pipeline data.
+		const pipeline = data.pipeline;
+		if (pipeline && pipeline.mode) {
+			switch (pipeline.mode) {
+				case 'mcu-forward':
+					if (this.group) {
+						// NOTE(longsleep): Enable new Peer for pipeline. This
+						// peer will be used to send local streams to the
+						// pipeline.
+						if (!this.peers.has(pipeline.pipeline)) {
+							const record = new PeerRecord();
+							record.user = pipeline.pipeline;
+							record.state = getRandomString(12);
+							record.ref = pipeline.pipeline;
+							record.hash = this.group.record.hash;
+							record.cid = pipeline.mode;
+							this.setChannelOptions({
+								localStreamTarget: record,
+							});
+							this.peers.set(record.user, record);
+							console.debug('webrtc pipeline peer enabled', record.ref);
+						}
+					}
+					break;
+
+				default:
+					console.warn('webrtc channel with unknown pipeline mode', pipeline.mode);
+					break;
+			}
 		}
 	}
 

@@ -69,6 +69,21 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 	v: number;
 }
 
+export interface IRTMDataWebRTCChannelExtra {
+	group?: IRTMDataWebRTCChannelGroup;
+	pipeline?: IRTMDataWebRTCChannelPipeline;
+}
+
+export interface IRTMDataWebRTCChannelGroup {
+	group: string;
+	members: string[];
+}
+
+export interface IRTMDataWebRTCChannelPipeline {
+	pipeline: string;
+	mode: string;
+}
+
 export class RTMDataError {
 	public code: string;
 	public msg: string = '';

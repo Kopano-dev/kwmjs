@@ -34,6 +34,9 @@ export {
 	IRTMTURNResponse,
 	ITURNConfig,
 	IRTMDataError,
+	IRTMDataWebRTCChannelExtra,
+	IRTMDataWebRTCChannelGroup,
+	IRTMDataWebRTCChannelPipeline,
 	IRTMTypeEnvelope,
 	IRTMTypeEnvelopeReply,
 	IRTMTypeError,
@@ -44,6 +47,7 @@ export {
 } from './rtm';
 
 export {
+	ChannelOptions,
 	PeerRecord,
 	IWebRTCManagerContainer,
 	WebRTCBaseManager,

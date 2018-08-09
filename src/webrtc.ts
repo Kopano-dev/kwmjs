@@ -9,9 +9,9 @@
 'use strict';
 
 import * as SimplePeer from 'simple-peer';
-import { WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
+import { KWMErrorEvent, WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
 import { GroupController } from './group';
-import { IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeWebRTC } from './rtm';
+import { IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
 
 /**
@@ -321,9 +321,10 @@ export class WebRTCManager extends WebRTCBaseManager {
 		if (record.hash) {
 			throw new Error('record already has a hash');
 		}
-		record.hash = reply.hash;
 
-		this.handleWebRTCMessage(reply);
+		this.handleReplyMessage(reply, () => {
+			record.hash = reply.hash;
+		});
 
 		return this.channel;
 	}
@@ -356,6 +357,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 			accept: true,
 			state: record.ref,
 		});
+		if (record !== this.peers.get(user)) {
+			throw new Error('unknown or invalid peer');
+		}
 
 		return this.channel;
 	}
@@ -389,9 +393,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 		record.hash = reply.hash;
 
 		if (!this.channel && !this.group) {
-			this.group = new GroupController(this, group, record);
-
-			this.handleWebRTCMessage(reply);
+			this.handleReplyMessage(reply, () => {
+				this.group = new GroupController(this, group, record);
+			});
 		}
 
 		return this.channel;
@@ -642,6 +646,33 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 		if (user && this.group && this.group.hasMember(user)) {
 			this.refreshGroup(this.group);
+		}
+	}
+
+	/**
+	 * Process incoming KRM RTM API WebRTC reply payload data.
+	 *
+	 * @private
+	 * @param message Payload message.
+	 */
+	public handleReplyMessage(message: IRTMTypeEnvelope, successCb?: () => void): void {
+		if (message.type === 'error')  {
+			console.warn('server reply error', message);
+			throw new KWMErrorEvent(this, (message as IRTMTypeError).error);
+		}
+
+		if (successCb) {
+			successCb();
+		}
+
+		switch (message.type) {
+			case 'webrtc':
+				this.handleWebRTCMessage(message as IRTMTypeWebRTC);
+				break;
+
+			default:
+				console.debug('unknown reply type', message.type, message);
+				break;
 		}
 	}
 
@@ -909,9 +940,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 		record.hash = reply.hash;
 
 		if (this.channel === group.channel && group.channel === reply.channel) {
-			this.group = group;
-
-			this.handleWebRTCMessage(reply);
+			this.handleReplyMessage(reply, () => {
+				this.group = group;
+			});
 		}
 
 		return this.channel;

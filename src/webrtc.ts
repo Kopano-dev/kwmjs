@@ -11,7 +11,7 @@
 import * as SimplePeer from 'simple-peer';
 import { KWMErrorEvent, WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
 import { GroupController } from './group';
-import { IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeWebRTC } from './rtm';
+import { IRTMDataWebRTCChannelExtra, IRTMTransaction, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
 
 /**
@@ -28,6 +28,7 @@ export class PeerRecord {
 	public state: string = '';
 	public user: string = '';
 	public cid: string = '';
+	public transaction?: string = '';
 }
 
 /**
@@ -356,12 +357,40 @@ export class WebRTCManager extends WebRTCBaseManager {
 		await this.sendWebrtc('webrtc_call', this.channel, record, {
 			accept: true,
 			state: record.ref,
-		});
+		}, 0, record.transaction || '');
+		record.transaction = '';
 		if (record !== this.peers.get(user)) {
 			throw new Error('unknown or invalid peer');
 		}
 
 		return this.channel;
+	}
+
+	public async doReject(user: string, reason: string = 'reject'): Promise<string> {
+		console.debug('webrtc doReject', user, reason);
+
+		if (!this.channel) {
+			throw new Error('no channel');
+		}
+
+		const record = this.peers.get(user);
+		if (!record) {
+			throw new Error('no matching peer');
+		}
+
+		const channel = this.channel;
+
+		this.sendWebrtc('webrtc_call', this.channel, record, {
+			accept: false,
+			reason,
+			state: record.ref,
+		}, 0, record.transaction || '');
+		record.transaction = '';
+
+		// Hangup with out a reason is local.
+		this.sendHangup(this.channel, record, '');
+
+		return channel;
 	}
 
 	/**
@@ -412,7 +441,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 	 * @returns Promise providing the accociated channel ID.
 	 */
 	public async doHangup(user: string = '', reason: string = 'hangup'): Promise<string> {
-		console.log('webrtc doHangup', user);
+		console.log('webrtc doHangup', user, reason);
 
 		const channel = this.channel;
 		const group = this.group;
@@ -720,19 +749,22 @@ export class WebRTCManager extends WebRTCBaseManager {
 					record.state = getRandomString(12);
 					record.ref = message.state;
 					record.hash = message.hash;
+					record.transaction = message.transaction || '';
 
 					if (this.channel) {
 						// busy
 						console.warn('webrtc incoming call while already have a call');
+						// TODO(longsleep): Add general reply to server for calls to get busy
+						// handling right.
 						this.sendWebrtc('webrtc_call', message.channel, record, {
 							accept: false,
 							reason: 'reject_busy',
 							state: record.ref,
-						});
+						}, 0, record.transaction || '');
 						return;
 					}
 					if (this.channel && this.channel !== message.channel) {
-						console.warn('webrtc incoming call with wrong channel', this.channel);
+						console.debug('webrtc incoming call with wrong channel', this.channel);
 						return;
 					}
 
@@ -775,6 +807,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 						}
 					}
 					if (!message.data.accept) {
+						// TODO(longsleep): Multiple answer support - this currently aborts
+						// calls on the first busy signal. Most likely this is best
+						// to be implemented on the server side though.
 						console.debug('webrtc peer did not accept call', message);
 						const abortEvent = new WebRTCPeerEvent(this, 'abortcall', record, message.data.reason || 'no reason given');
 						abortEvent.channel = this.channel;
@@ -810,7 +845,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 			case 'webrtc_hangup': {
 				if (!message.channel || this.channel !== message.channel) {
-					console.warn('webrtc hangup with wrong channel', this.channel, message.channel);
+					console.debug('webrtc hangup with wrong channel', this.channel, message.channel);
 					return;
 				}
 				if (!message.data) {
@@ -838,7 +873,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 			case 'webrtc_signal':
 				if (!message.channel || this.channel !== message.channel) {
-					console.warn('webrtc signal with wrong channel', this.channel, message.channel);
+					console.debug('webrtc signal with wrong channel', this.channel, message.channel);
 					return;
 				}
 				if (!message.data) {
@@ -974,7 +1009,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 	protected async sendWebrtc(
 		subtype: string, channel: string, record: PeerRecord,
-		data?: any, replyTimeout: number = 0): Promise<IRTMTypeEnvelope> {
+		data?: any, replyTimeout: number = 0, transaction: string = ''): Promise<IRTMTypeEnvelope> {
 		const payload = {
 			channel,
 			data,
@@ -985,6 +1020,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 			state: record.state,
 			subtype,
 			target: record.user,
+			transaction,
 			type: 'webrtc',
 			v: WebRTCManager.version,
 		};

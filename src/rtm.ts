@@ -35,6 +35,10 @@ export interface IRTMDataError {
 	msg: string;
 }
 
+export interface IRTMTransaction {
+	transaction?: string;
+}
+
 export interface IRTMTypeEnvelope {
 	id: number;
 	type: string;
@@ -67,6 +71,7 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 	hash: string;
 	data: any;
 	v: number;
+	transaction?: string;
 }
 
 export interface IRTMDataWebRTCChannelExtra {

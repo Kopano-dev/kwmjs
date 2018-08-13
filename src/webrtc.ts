@@ -19,10 +19,12 @@ import { getRandomString } from './utils';
  * meta data.
  */
 export class PeerRecord {
+	public id: string = '';
 	public extra?: any;
 	public group?: string = '';
 	public hash: string = '';
 	public initiator: boolean = false;
+	public reconnect: boolean = true;
 	public pc?: SimplePeer;
 	public ref: string = '';
 	public state: string = '';
@@ -148,10 +150,15 @@ export class WebRTCBaseManager {
 			console.debug('peerconnection error', err);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.error', record, err));
 
-			// TODO(longsleep): Add handler for auto recovery / create new pc
-			// in record and start signaling again.
+			if (!record.reconnect) {
+				return;
+			}
+			// Auto recovery / create new pc in record and start signaling again.
 			setTimeout(() => {
 				if (record.pc !== undefined && pc !== record.pc) {
+					return;
+				}
+				if (!record.reconnect) {
 					return;
 				}
 
@@ -310,10 +317,11 @@ export class WebRTCManager extends WebRTCBaseManager {
 		}
 
 		const record = new PeerRecord();
+		record.id = user;
 		record.initiator = true;
 		record.user = user;
 		record.state = getRandomString(12);
-		this.peers.set(user, record);
+		this.peers.set(record.id, record);
 
 		const event = new WebRTCPeerEvent(this, 'newcall', record);
 		this.dispatchEvent(event);
@@ -474,13 +482,13 @@ export class WebRTCManager extends WebRTCBaseManager {
 	 * Triggers a WebRTC full mesh group call to the provided ids using the
 	 * provided group record..
 	 *
-	 * @param ids The Users ID of the peers to connect.
+	 * @param users The Users ID of the peers to connect.
 	 * @param groupRecord peer record of the accociated group.
 	 *
 	 * @returns Promise providing the accociated channel ID.
 	 */
-	public async doMesh(ids: string[], groupRecord: PeerRecord): Promise<string> {
-		console.log('webrtc doMesh', this.user, ids);
+	public async doMesh(users: string[], groupRecord: PeerRecord): Promise<string> {
+		console.log('webrtc doMesh', this.user, users);
 		if (!this.user) {
 			throw new Error('no user');
 		}
@@ -492,21 +500,21 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 		const added: string[] = [];
 		const removed: string[] = [];
-		const user = this.user;
+		const ourselves = this.user;
 		const peers = this.peers;
 		const all = new Map<string, boolean>();
 
 		// Find new required peers.
 		let ok = false;
-		for (const id of ids) {
-			if (id === user) {
+		for (const user of users) {
+			if (user === ourselves) {
 				// Ignore ourselves but set OK.
 				ok = true;
 				continue;
 			}
-			all.set(id, true);
-			if (!peers.has(id)) {
-				added.push(id);
+			all.set(user, true);
+			if (!peers.has(user)) {
+				added.push(user);
 			}
 		}
 		if (!ok) {
@@ -514,16 +522,16 @@ export class WebRTCManager extends WebRTCBaseManager {
 		}
 
 		// Find obsolete peers which we have but no longer in group.
-		peers.forEach((record, id) => {
+		peers.forEach(record => {
 			if (record.cid !== '') {
 				// Normal peers only for mesh.
 				return;
 			}
-			if (!all.has(id)) {
-				removed.push(id);
+			if (!all.has(record.user)) {
+				removed.push(record.user);
 			} else if (!record.pc || record.pc.destroyed) {
 				// Bring back dead connections.
-				added.push(id);
+				added.push(record.user);
 			}
 		});
 
@@ -532,24 +540,25 @@ export class WebRTCManager extends WebRTCBaseManager {
 		const promises: Array<Promise<string>> = [];
 
 		// Remove first.
-		for (const id of removed) {
-			promises.push(this.doHangup(id, '')); // NOTE(longsleep): Hangup without reason is a local hangup.
+		for (const user of removed) {
+			promises.push(this.doHangup(user, '')); // NOTE(longsleep): Hangup without reason is a local hangup.
 		}
 
 		// Add second.
-		for (const id of added) {
+		for (const user of added) {
 			const record = new PeerRecord();
-			record.user = id;
+			record.id = user;
+			record.user = user;
 			record.group = groupRecord.group;
 			// TODO(longsleep): Hash and refs are from the group here - find a
 			// better way to make those peer match specific.
 			record.hash = groupRecord.hash;
 			record.ref = groupRecord.group || '';
 			record.state = groupRecord.group || '';
-			this.peers.set(id, record);
+			this.peers.set(record.id, record);
 
-			console.log('webrtc doMesh outbound', id, record.ref, record.hash);
-			promises.push(this.doAnswer(id));
+			console.log('webrtc doMesh outbound', user, record.ref, record.hash);
+			promises.push(this.doAnswer(user));
 		}
 
 		// Wait on all.
@@ -748,6 +757,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 					// Incoming call.
 					record = new PeerRecord();
+					record.id = message.source;
 					record.user = message.source;
 					record.state = getRandomString(12);
 					record.ref = message.state;
@@ -776,7 +786,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 					}
 
 					this.channel = message.channel;
-					this.peers.set(message.source, record);
+					this.peers.set(record.id, record);
 
 					const event = new WebRTCPeerEvent(this, 'incomingcall', record);
 					event.channel = message.channel;
@@ -944,6 +954,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 						// pipeline.
 						if (!this.peers.has(pipeline.pipeline)) {
 							const record = new PeerRecord();
+							record.id = pipeline.pipeline;
 							record.user = pipeline.pipeline;
 							record.state = getRandomString(12);
 							record.ref = pipeline.pipeline;
@@ -952,7 +963,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 							this.setChannelOptions({
 								localStreamTarget: record,
 							});
-							this.peers.set(record.user, record);
+							this.peers.set(record.id, record);
 							console.debug('webrtc pipeline peer enabled', record.ref);
 						}
 					}
@@ -989,7 +1000,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 	}
 
 	protected async sendHangup(channel: string, record: PeerRecord, reason: string = 'hangup'): Promise<boolean> {
-		this.peers.delete(record.user);
+		this.peers.delete(record.id);
 		if (record.pc) {
 			record.pc.destroy();
 			record.pc = undefined;

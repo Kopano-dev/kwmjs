@@ -233,6 +233,9 @@ export class WebRTCBaseManager {
 		});
 
 		record.pc = pc;
+
+		console.debug('peerconnection new');
+		this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.new', record, pc));
 		return pc;
 	}
 
@@ -895,7 +898,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 					console.log('start webrtc, received signal');
 					const pc2 = this.getPeerConnection(this.computeInitiator(record), record);
 					console.debug('created pc', pc2);
-					record.pc = pc2;
+					if (!record.pc) {
+						throw new Error('no peer connection in record');
+					}
 				}
 
 				if (message.data && message.data.sdp && this.options.remoteSDPTransform) {

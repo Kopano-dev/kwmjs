@@ -531,11 +531,12 @@ export class KWM implements IWebRTCManagerContainer {
 		if (authorizationHeader) {
 			headers.set('Authorization', authorizationHeader);
 		}
+		headers.set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		const params = new URLSearchParams();
 		params.set('user', user);
 
 		return fetch(url, {
-			body: params,
+			body: params.toString(),
 			headers,
 			method: 'POST',
 			mode: 'cors',
@@ -567,11 +568,12 @@ export class KWM implements IWebRTCManagerContainer {
 		if (authorizationHeader) {
 			headers.set('Authorization', authorizationHeader);
 		}
+		headers.set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		const params = new URLSearchParams();
 		params.set('user', user);
 
 		return fetch(url, {
-			body: params,
+			body: params.toString(),
 			headers,
 			method: 'POST',
 			mode: 'cors',

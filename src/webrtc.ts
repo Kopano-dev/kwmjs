@@ -631,6 +631,28 @@ export class WebRTCManager extends WebRTCBaseManager {
 			if (peer.pc) {
 				// NOTE(longsleep): This will destroy the peer connection if the
 				// track was not previously added.
+				let submap = peer.pc._senderMap.get(track);
+				if (!submap) {
+					// NOTE(longsleep): Workaround lost sender submap. For some
+					// reason the WeakMap in simplepeer sometimes looses its
+					// senders. This can restore the entry.
+					const senders = peer.pc._pc.getSenders();
+					for (const s of senders) {
+						if (s.track === track) {
+							submap = new WeakMap();
+							submap.set(stream, s);
+							console.warn('restored lost sender for track before removal');
+							break;
+						}
+					}
+					if (submap) {
+						// Bring back track record.
+						peer.pc._senderMap.set(track, submap);
+					} else {
+						// No sender found for track -> do nothing.
+						return;
+					}
+				}
 				peer.pc.removeTrack(track, stream);
 				if (peer.pc) {
 					peer.pc._needsNegotiation();

@@ -14,6 +14,9 @@ declare module 'simple-peer' {
 		public connected: boolean;
 		public initiator: boolean;
 
+		public _senderMap: WeakMap<MediaStreamTrack, WeakMap<MediaStream, RTCRtpSender>>;
+		public _pc: RTCPeerConnection;
+
 		constructor(options: any);
 
 		public on(name: string, handler: (event: any, ...opts: any[]) => void): void;

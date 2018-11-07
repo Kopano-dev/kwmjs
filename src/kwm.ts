@@ -30,10 +30,16 @@ let websocketSequence = 0;
 
 export const authorizationTypeToken = 'Token';
 export const authorizationTypeBearer = 'Bearer';
+export const defaultAPIVersion = 'v1';
 
 export interface IKWMOptions {
 	authorizationType?: string;
 	authorizationValue?: string;
+}
+
+export interface IKWMEndpoints {
+	rtmConnect: string;
+	rtmTurn: string;
 }
 
 /**
@@ -50,7 +56,19 @@ export interface IReplyTimeoutRecord {
  * callbacks.
  */
 export class KWMInit {
+	public static endpoints: any = {
+		v1: {
+			rtmConnect: '/api/v1/rtm.connect',
+			rtmTurn: '/api/v1/rtm.turn',
+		},
+		v2: {
+			rtmConnect: '/api/kwm/v2/rtm/connect',
+			rtmTurn: '/api/kwm/v2/rtm/turn',
+		},
+	};
+
 	public static options: any = {
+		apiVersion: defaultAPIVersion,
 		connectTimeout: 5000,
 		heartbeatInterval: 5000,
 		maxReconnectInterval: 30000,
@@ -147,6 +165,7 @@ export class KWM implements IWebRTCManagerContainer {
 
 	private baseURI: string;
 	private options: IKWMOptions;
+	private endpoints: IKWMEndpoints;
 	private user?: string;
 	private socket?: WebSocket;
 	private closing: boolean = false;
@@ -169,6 +188,12 @@ export class KWM implements IWebRTCManagerContainer {
 		this.baseURI = baseURI.replace(/\/$/, '');
 		this.options = options || {};
 		this.replyHandlers = new Map<number, IReplyTimeoutRecord>();
+
+		const endpoints = KWMInit.endpoints[KWMInit.options.apiVersion];
+		if (!endpoints) {
+			throw new Error('unknown apiVersion value: ' + KWMInit.options.apiVersion);
+		}
+		this.endpoints = endpoints;
 	}
 
 	/**
@@ -501,7 +526,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @returns Promise with the unmarshalled response data once received.
 	 */
 	private async rtmConnect(user: string, authorizationHeader?: string): Promise<IRTMConnectResponse> {
-		const url = this.baseURI + '/api/v1/rtm.connect';
+		const url = this.baseURI + this.endpoints.rtmConnect;
 		const headers = new Headers();
 		if (authorizationHeader) {
 			headers.set('Authorization', authorizationHeader);
@@ -537,7 +562,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @returns Promise with the unmarshalled response data once received.
 	 */
 	private async rtmTURN(user: string, authorizationHeader?: string): Promise<IRTMTURNResponse> {
-		const url = this.baseURI + '/api/v1/rtm.turn';
+		const url = this.baseURI + this.endpoints.rtmTurn;
 		const headers = new Headers();
 		if (authorizationHeader) {
 			headers.set('Authorization', authorizationHeader);

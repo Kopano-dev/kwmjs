@@ -30,7 +30,7 @@ let websocketSequence = 0;
 
 export const authorizationTypeToken = 'Token';
 export const authorizationTypeBearer = 'Bearer';
-export const defaultAPIVersion = 'v1';
+export const defaultAPIVersion = 'v2';
 
 export interface IKWMOptions {
 	authorizationType?: string;

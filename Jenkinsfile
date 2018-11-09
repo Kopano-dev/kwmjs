@@ -7,13 +7,27 @@ pipeline {
 			args '-u 0'
 		}
 	}
+	environment {
+		CI = 'true'
+	}
 	stages {
-		stage('build') {
+		stage('Lint') {
+			steps {
+				sh 'make lint-checkstyle'
+				checkstyle pattern: 'test/tests.tslint.xml', canComputeNew: false, failedTotalAll: '5', unstableTotalAll: '50'
+			}
+		}
+		stage('Build') {
 			steps {
 				sh 'make'
 			}
 		}
-		stage('dist') {
+		stage('Docs') {
+			steps {
+				publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'docs/', reportFiles: 'index.html', reportName: 'Documentation', reportTitles: ''])
+			}
+		}
+		stage('Dist') {
 			when {
 				branch 'master'
 			}

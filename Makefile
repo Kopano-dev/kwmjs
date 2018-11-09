@@ -46,6 +46,11 @@ docs: vendor ; $(info building $@ ...) @
 lint: vendor ; $(info running linters ...) @
 	@$(YARN) tslint -p .
 
+.PHONY: lint-checkstyle
+lint-checkstyle: vendor ; $(info running linters checkstyle ...) @
+	@mkdir -p ./test
+	@$(YARN) tslint -t checkstyle -p . -o ./test/tests.tslint.xml --force
+
 # Yarn
 
 .PHONY: vendor

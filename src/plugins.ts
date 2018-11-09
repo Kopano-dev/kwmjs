@@ -6,7 +6,6 @@
  *
  */
 
-import { VideoCall as JanusVideoCallPlugin } from './janus/plugins/videocall';
 import { KWM } from './kwm';
 
 /**
@@ -54,5 +53,3 @@ export class Plugins {
 
 	private static registry = new Map<string, IPlugin<any>>();
 }
-
-Plugins.register(JanusVideoCallPlugin);

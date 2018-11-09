@@ -10,6 +10,7 @@
 
 declare module 'simple-peer' {
 	class Peer {
+		public _id: string; // tslint:disable-line variable-name
 		public destroyed: boolean;
 		public connected: boolean;
 		public initiator: boolean;

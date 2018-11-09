@@ -31,6 +31,7 @@ export class PeerRecord {
 	public user: string = '';
 	public cid: string = '';
 	public transaction?: string = '';
+	public rpcid?: string;
 }
 
 /**
@@ -127,7 +128,7 @@ export class WebRTCBaseManager {
 		return this.channelOptions;
 	}
 
-	protected getPeerConnection(initiator: boolean, record: PeerRecord): SimplePeer {
+	protected getPeerConnection(initiator: boolean, record: PeerRecord, rpcid?: string): SimplePeer {
 		const { localSDPTransform, remoteSDPTransform, ...options } = this.options;
 
 		const streams = [];
@@ -165,7 +166,8 @@ export class WebRTCBaseManager {
 				console.debug('peerconnection auto reconnect after error');
 				record.pc = undefined;
 				// NOTE(longsleep): Possible race when both sides errored.
-				const newpc = this.getPeerConnection(initiator, record);
+				const newpc = this.getPeerConnection(initiator, record, undefined);
+				console.debug('created pc', newpc._id, newpc);
 			}, 500);
 		});
 		pc.on('signal', data => {
@@ -180,6 +182,7 @@ export class WebRTCBaseManager {
 				group: record.group,
 				hash: record.hash,
 				id: 0,
+				pcid: pc._id,
 				state: record.state,
 				subtype: 'webrtc_signal',
 				target: record.user,
@@ -240,9 +243,11 @@ export class WebRTCBaseManager {
 		});
 
 		record.pc = pc;
+		record.rpcid = rpcid;
 
 		console.debug('peerconnection new');
 		this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.new', record, pc));
+
 		return pc;
 	}
 
@@ -855,8 +860,8 @@ export class WebRTCManager extends WebRTCBaseManager {
 					record.ref = message.state;
 					console.log('start webrtc, accept call reply');
 
-					const pc1 = this.getPeerConnection(this.computeInitiator(record), record);
-					console.debug('created pc', pc1);
+					const pc1 = this.getPeerConnection(this.computeInitiator(record), record, undefined);
+					console.debug('created pc', pc1._id, pc1);
 
 					const event = new WebRTCPeerEvent(this, 'outgoingcall', record);
 					event.channel = this.channel;
@@ -926,10 +931,28 @@ export class WebRTCManager extends WebRTCBaseManager {
 					return;
 				}
 
+				if (message.pcid !== record.rpcid) {
+					if (record.rpcid === undefined) {
+						if (record.pc && message.pcid !== undefined) {
+							// Not bound yet, accept and bind incoming id.
+							record.rpcid = message.pcid;
+							console.log('bound webrtc, received signal', message.pcid, record.pc._id);
+						}
+					} else {
+						// Existing connection but other remote pcid. What now?
+						console.info('webrtc signal with new pcid', record.rpcid, message.pcid);
+						if (record.pc) {
+							// Kill off existing pc cleanly to start fresh on both sides.
+							record.pc.destroy();
+							record.pc = undefined;
+						}
+					}
+				}
+
 				if (!record.pc) {
-					console.log('start webrtc, received signal');
-					const pc2 = this.getPeerConnection(this.computeInitiator(record), record);
-					console.debug('created pc', pc2);
+					console.log('start webrtc, received signal', message.pcid);
+					const pc2 = this.getPeerConnection(this.computeInitiator(record), record, message.pcid);
+					console.debug('created pc', pc2._id, pc2);
 					if (!record.pc) {
 						throw new Error('no peer connection in record');
 					}

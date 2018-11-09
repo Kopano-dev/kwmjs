@@ -72,6 +72,7 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 	data: any;
 	v: number;
 	transaction?: string;
+	pcid?: string;
 }
 
 export interface IRTMDataWebRTCChannelExtra {

@@ -14,8 +14,8 @@ declare module 'simple-peer' {
 		public connected: boolean;
 		public initiator: boolean;
 
-		public _senderMap: WeakMap<MediaStreamTrack, WeakMap<MediaStream, RTCRtpSender>>;
-		public _pc: RTCPeerConnection;
+		public _senderMap: WeakMap<MediaStreamTrack, WeakMap<MediaStream, RTCRtpSender>>; // tslint:disable-line variable-name
+		public _pc: RTCPeerConnection; // tslint:disable-line variable-name
 
 		constructor(options: any);
 

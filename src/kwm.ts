@@ -167,6 +167,7 @@ export class KWM implements IWebRTCManagerContainer {
 	private options: IKWMOptions;
 	private endpoints: IKWMEndpoints;
 	private user?: string;
+	private userMode?: string;
 	private socket?: WebSocket;
 	private closing: boolean = false;
 	private reconnector: number = 0;
@@ -264,11 +265,13 @@ export class KWM implements IWebRTCManagerContainer {
 	 * Establish Websocket connection to KWM server as the provided user.
 	 *
 	 * @param user The user ID.
+	 * @param userMode The type of the user value.
 	 * @returns Promise which resolves when the connection was established.
 	 */
-	public async connect(user: string): Promise<void> {
-		console.debug('KWM connect', user);
+	public async connect(user: string, userMode: string = 'user'): Promise<void> {
+		console.debug('KWM connect', user, userMode);
 		this.user = user;
+		this.userMode = userMode;
 
 		clearTimeout(this.reconnector);
 		clearTimeout(this.heartbeater);
@@ -288,7 +291,7 @@ export class KWM implements IWebRTCManagerContainer {
 			}
 			return new Promise<void>((resolve, reject) => {
 				this.reconnector = window.setTimeout(() => {
-					this.connect(user).then(resolve).catch(reject);
+					this.connect(user, userMode).then(resolve).catch(reject);
 				}, reconnectTimeout);
 				this.reconnectAttempts++;
 			});
@@ -389,7 +392,7 @@ export class KWM implements IWebRTCManagerContainer {
 				authorizationHeader = this.options.authorizationType + ' ' + this.options.authorizationValue;
 			}
 			try {
-				connectResult = await this.rtmConnect(user, authorizationHeader);
+				connectResult = await this.rtmConnect(user, userMode, authorizationHeader);
 			} catch (err) {
 				console.warn('failed to fetch connection details', err);
 				connectResult = {
@@ -522,10 +525,12 @@ export class KWM implements IWebRTCManagerContainer {
 	 * Call KWM RTM rtm.connect via REST to retrieve Websocket endpoint details.
 	 *
 	 * @param user The user ID.
+	 * @param userMode The type of the user value.
 	 * @param authorizataionHeader Authorization HTTP request header value.
 	 * @returns Promise with the unmarshalled response data once received.
 	 */
-	private async rtmConnect(user: string, authorizationHeader?: string): Promise<IRTMConnectResponse> {
+	private async rtmConnect(
+		user: string, userMode: string = 'user', authorizationHeader?: string): Promise<IRTMConnectResponse> {
 		const url = this.baseURI + this.endpoints.rtmConnect;
 		const headers = new Headers();
 		if (authorizationHeader) {
@@ -533,7 +538,7 @@ export class KWM implements IWebRTCManagerContainer {
 		}
 		headers.set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		const params = new URLSearchParams();
-		params.set('user', user);
+		params.set(userMode, user);
 
 		return fetch(url, {
 			body: params.toString(),

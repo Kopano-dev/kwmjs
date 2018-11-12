@@ -982,6 +982,15 @@ export class WebRTCManager extends WebRTCBaseManager {
 			return;
 		}
 
+		// Check for replace flag.
+		if (data.replaced) {
+			// Silent hangup call, it was replaced.
+			setTimeout(() => {
+				this.doHangup(undefined, ''); // NOTE(longsleep): Hangup without reason is a local hangup.
+			}, 0);
+			return;
+		}
+
 		// Process group data.
 		if (data.group && this.group) {
 			// Delegate to group controller.

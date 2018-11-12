@@ -78,6 +78,7 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 export interface IRTMDataWebRTCChannelExtra {
 	group?: IRTMDataWebRTCChannelGroup;
 	pipeline?: IRTMDataWebRTCChannelPipeline;
+	replaced?: boolean;
 }
 
 export interface IRTMDataWebRTCChannelGroup {

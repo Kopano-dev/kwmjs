@@ -30,6 +30,11 @@ export interface ITURNConfig {
 	uris: string[];
 }
 
+export interface ISelf {
+	id: string;
+	name: string;
+}
+
 export interface IRTMDataError {
 	code: string;
 	msg: string;
@@ -42,6 +47,10 @@ export interface IRTMTransaction {
 export interface IRTMTypeEnvelope {
 	id: number;
 	type: string;
+}
+
+export interface IRTMTypeHello extends IRTMTypeEnvelope {
+	self?: ISelf;
 }
 
 export interface IRTMTypeEnvelopeReply extends IRTMTypeEnvelope {

@@ -16,7 +16,7 @@ import { KWMErrorEvent, KWMStateChangedEvent, KWMTURNServerChangedEvent } from '
 import { Plugins } from './plugins';
 import {
 	IRTMConnectResponse, IRTMDataError, IRTMTURNResponse, IRTMTypeEnvelope,
-	IRTMTypeEnvelopeReply, IRTMTypeError, IRTMTypePingPong, IRTMTypeWebRTC,
+	IRTMTypeEnvelopeReply, IRTMTypeError, IRTMTypeHello, IRTMTypePingPong, IRTMTypeWebRTC,
 	ITURNConfig, RTMDataError } from './rtm';
 import { makeAbsoluteURL } from './utils';
 import { IWebRTCManagerContainer, PeerRecord, WebRTCManager } from './webrtc';
@@ -167,7 +167,6 @@ export class KWM implements IWebRTCManagerContainer {
 	private options: IKWMOptions;
 	private endpoints: IKWMEndpoints;
 	private user?: string;
-	private userMode?: string;
 	private socket?: WebSocket;
 	private closing: boolean = false;
 	private reconnector: number = 0;
@@ -264,14 +263,19 @@ export class KWM implements IWebRTCManagerContainer {
 	/**
 	 * Establish Websocket connection to KWM server as the provided user.
 	 *
-	 * @param user The user ID.
-	 * @param userMode The type of the user value.
+	 * @param auth The authentication identifier.
+	 * @param authMode The type of the authentication identifier value.
 	 * @returns Promise which resolves when the connection was established.
 	 */
-	public async connect(user: string, userMode: string = 'user'): Promise<void> {
-		console.debug('KWM connect', user, userMode);
-		this.user = user;
-		this.userMode = userMode;
+	public async connect(auth: string, authMode: string = 'user'): Promise<void> {
+		console.debug('KWM connect', auth, authMode);
+		if (authMode === 'user') {
+			// NOTE(longsleep): Keep a reference to user in user mode for
+			// backwards compatibility.
+			this.user = auth;
+		} else {
+			this.user = undefined;
+		}
 
 		clearTimeout(this.reconnector);
 		clearTimeout(this.heartbeater);
@@ -291,7 +295,7 @@ export class KWM implements IWebRTCManagerContainer {
 			}
 			return new Promise<void>((resolve, reject) => {
 				this.reconnector = window.setTimeout(() => {
-					this.connect(user, userMode).then(resolve).catch(reject);
+					this.connect(auth, authMode).then(resolve).catch(reject);
 				}, reconnectTimeout);
 				this.reconnectAttempts++;
 			});
@@ -369,7 +373,7 @@ export class KWM implements IWebRTCManagerContainer {
 					authorizationHeader = this.options.authorizationType + ' ' + this.options.authorizationValue;
 				}
 				try {
-					turnResult = await this.rtmTURN(user, authorizationHeader);
+					turnResult = await this.rtmTURN(auth, authMode, authorizationHeader);
 				} catch (err) {
 					console.warn('failed to refresh turn details, will retry', err);
 					turnRefresher(5);
@@ -392,7 +396,7 @@ export class KWM implements IWebRTCManagerContainer {
 				authorizationHeader = this.options.authorizationType + ' ' + this.options.authorizationValue;
 			}
 			try {
-				connectResult = await this.rtmConnect(user, userMode, authorizationHeader);
+				connectResult = await this.rtmConnect(auth, authMode, authorizationHeader);
 			} catch (err) {
 				console.warn('failed to fetch connection details', err);
 				connectResult = {
@@ -524,13 +528,13 @@ export class KWM implements IWebRTCManagerContainer {
 	/**
 	 * Call KWM RTM rtm.connect via REST to retrieve Websocket endpoint details.
 	 *
-	 * @param user The user ID.
-	 * @param userMode The type of the user value.
+	 * @param auth The authentication identifier.
+	 * @param authMode The type of the authentication identifier value.
 	 * @param authorizataionHeader Authorization HTTP request header value.
 	 * @returns Promise with the unmarshalled response data once received.
 	 */
 	private async rtmConnect(
-		user: string, userMode: string = 'user', authorizationHeader?: string): Promise<IRTMConnectResponse> {
+		auth: string, authMode: string = 'user', authorizationHeader?: string): Promise<IRTMConnectResponse> {
 		const url = this.baseURI + this.endpoints.rtmConnect;
 		const headers = new Headers();
 		if (authorizationHeader) {
@@ -538,7 +542,7 @@ export class KWM implements IWebRTCManagerContainer {
 		}
 		headers.set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		const params = new URLSearchParams();
-		params.set(userMode, user);
+		params.set(authMode, auth);
 
 		return fetch(url, {
 			body: params.toString(),
@@ -563,11 +567,14 @@ export class KWM implements IWebRTCManagerContainer {
 	/**
 	 * Call KWM RTM rtm.turn via REST to retrieve TURN details.
 	 *
-	 * @param user The user ID.
+	 * @param auth The authentication identifier.
+	 * @param authMode The type of the authentication identifier value.
 	 * @param authorizataionHeader Authorization HTTP request header value.
 	 * @returns Promise with the unmarshalled response data once received.
 	 */
-	private async rtmTURN(user: string, authorizationHeader?: string): Promise<IRTMTURNResponse> {
+	private async rtmTURN(
+		auth: string, authMode: string = 'user',
+		authorizationHeader?: string): Promise<IRTMTURNResponse> {
 		const url = this.baseURI + this.endpoints.rtmTurn;
 		const headers = new Headers();
 		if (authorizationHeader) {
@@ -575,7 +582,7 @@ export class KWM implements IWebRTCManagerContainer {
 		}
 		headers.set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		const params = new URLSearchParams();
-		params.set('user', user);
+		params.set(authMode, auth);
 
 		return fetch(url, {
 			body: params.toString(),
@@ -775,10 +782,11 @@ export class KWM implements IWebRTCManagerContainer {
 		}
 
 		switch (message.type) {
-			case 'hello':
+			case 'hello': {
 				console.debug('server hello', message);
-				this.webrtc.handleHello(this.user);
+				this.webrtc.handleHello(message as IRTMTypeHello, this.user);
 				break;
+			}
 			case 'goodbye':
 				console.debug('server goodbye, close connection', message);
 				this.reconnectAttempts = 1; // NOTE(longsleep): avoid instant reconnect.

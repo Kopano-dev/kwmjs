@@ -11,7 +11,7 @@
 import * as SimplePeer from 'simple-peer';
 import { KWMErrorEvent, WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
 import { GroupController } from './group';
-import { IRTMDataWebRTCChannelExtra, IRTMTransaction, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeWebRTC } from './rtm';
+import { IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeHello, IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
 
 /**
@@ -704,8 +704,14 @@ export class WebRTCManager extends WebRTCBaseManager {
 	 * @private
 	 * @param user User id.
 	 */
-	public handleHello(user?: string): void {
-		if (user !== this.user && this.channel) {
+	public handleHello(hello: IRTMTypeHello, user?: string): void {
+		const id = hello.self ? hello.self.id : undefined;
+		if (!id && !user) {
+			throw new Error('hello without self - kwm server too old?');
+		}
+		user = id ? id : user; // NOTE(longsleep): Backwards compatibility.
+
+		if (this.user && this.channel && user !== this.user) {
 			console.warn('webrtc user changed, hangup', this.user, user);
 			this.doHangup();
 		}

@@ -26,7 +26,7 @@
     "webpack-cli": "^2.0.14"
   },
   "dependencies": {
-    "simple-peer": "^9.0.0",
+    "simple-peer": "9.2.1",
     "url-search-params": "^0.10.0"
   }
 }

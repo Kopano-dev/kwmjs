@@ -844,8 +844,17 @@ export class WebRTCManager extends WebRTCBaseManager {
 					record.ref = message.state;
 					console.log('start webrtc, accept call reply');
 
-					const pc1 = this.getPeerConnection(this.computeInitiator(record), record, undefined);
-					console.debug('created pc', pc1._id, pc1);
+					const initiator = this.computeInitiator(record);
+					const pc1 = this.getPeerConnection(initiator, record, undefined);
+					console.debug('created pc', pc1._id, pc1, initiator);
+					if (!initiator) {
+						// Manually trigger negotiation from the peer if this
+						// peer is not the initiator. This starts WebRTC with
+						// the other side.
+						pc1.emit('signal', {
+							renegotiate: true,
+						});
+					}
 
 					const event = new WebRTCPeerEvent(this, 'outgoingcall', record);
 					event.channel = this.channel;

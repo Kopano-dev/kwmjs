@@ -81,6 +81,7 @@ export class WebRTCBaseManager {
 		iceServers: [
 			{url: 'stun:stun.l.google.com:19302'},
 		],
+		sdpSemantics: 'plan-b', // For now use Plan-B by default. See https://webrtc.org/web-apis/chrome/unified-plan/.
 	};
 	/**
 	 * WebRTC PeerConnection options for all connections created by

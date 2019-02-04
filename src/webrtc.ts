@@ -11,7 +11,8 @@
 import * as SimplePeer from 'simple-peer';
 import { KWMErrorEvent, WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
 import { GroupController } from './group';
-import { IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeHello, IRTMTypeWebRTC } from './rtm';
+import { IRTMDataProfile, IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeHello,
+	IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
 
 /**
@@ -20,6 +21,7 @@ import { getRandomString } from './utils';
  */
 export class PeerRecord {
 	public id: string = '';
+	public profile?: IRTMDataProfile;
 	public extra?: any;
 	public group?: string = '';
 	public hash: string = '';
@@ -770,6 +772,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 					// Incoming call.
 					record = new PeerRecord();
 					record.id = message.source;
+					record.profile = message.profile;
 					record.user = message.source;
 					record.state = getRandomString(12);
 					record.ref = message.state;
@@ -843,6 +846,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 					}
 
 					record.ref = message.state;
+					record.profile = message.profile;
 					console.log('start webrtc, accept call reply');
 
 					const initiator = this.computeInitiator(record);

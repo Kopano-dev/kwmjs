@@ -74,6 +74,7 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 	target: string;
 	source: string;
 	initiator: boolean;
+	profile?: IRTMDataProfile;
 	state: string;
 	channel: string;
 	group?: string;
@@ -82,6 +83,10 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 	v: number;
 	transaction?: string;
 	pcid?: string;
+}
+
+export interface IRTMDataProfile {
+	name?: string;
 }
 
 export interface IRTMDataWebRTCChannelExtra {

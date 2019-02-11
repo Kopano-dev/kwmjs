@@ -28,6 +28,8 @@ declare module 'simple-peer' {
 		public removeTrack(track: MediaStreamTrack, stream: MediaStream): void;
 		public addTrack(track: MediaStreamTrack, stream: MediaStream): void;
 
+		public send(chunk: ArrayBufferView | ArrayBuffer | string | Blob): void;
+
 		public _needsNegotiation(): void;
 	}
 

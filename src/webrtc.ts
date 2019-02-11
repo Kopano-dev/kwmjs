@@ -139,8 +139,10 @@ export class WebRTCBaseManager {
 			streams.push(this.localStream);
 		}
 		const pc = new SimplePeer({
+			channelName: 'kwmjs-1',
 			config: this.config,
 			initiator,
+			objectMode: true,
 			sdpTransform: localSDPTransform,
 			streams,
 			trickle: true,

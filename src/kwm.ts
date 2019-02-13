@@ -17,7 +17,7 @@ import { Plugins } from './plugins';
 import {
 	IRTMConnectResponse, IRTMDataError, IRTMTURNResponse, IRTMTypeEnvelope,
 	IRTMTypeEnvelopeReply, IRTMTypeError, IRTMTypeHello, IRTMTypePingPong, IRTMTypeWebRTC,
-	ITURNConfig, RTMDataError } from './rtm';
+	ISelf, ITURNConfig, RTMDataError } from './rtm';
 import { makeAbsoluteURL } from './utils';
 import { IWebRTCManagerContainer, PeerRecord, WebRTCManager } from './webrtc';
 
@@ -142,6 +142,12 @@ export class KWM implements IWebRTCManagerContainer {
 	 * Boolean flag wether KWM is automatically reconnecting or not.
 	 */
 	public reconnecting: boolean = false;
+
+	/**
+	 * Connection information as receveid by the server. This is only set if
+	 * the KWM server connection is connected and hello has been received.
+	 */
+	public self?: ISelf;
 
 	/**
 	 * Event handler for [[KWMStateChangedEvent]]. Set to a function to get called
@@ -587,6 +593,9 @@ export class KWM implements IWebRTCManagerContainer {
 		headers.set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		const params = new URLSearchParams();
 		params.set(authMode, auth);
+		if (this.options.authorizationAuth) {
+			params.set('auth', this.options.authorizationAuth);
+		}
 
 		return fetch(url, {
 			body: params.toString(),
@@ -662,7 +671,6 @@ export class KWM implements IWebRTCManagerContainer {
 				console.debug('socket connected', event);
 				this.connected = true;
 				this.connecting = false;
-				this.dispatchStateChangedEvent();
 				this.socket.onmessage = this.handleWebSocketMessage.bind(this);
 			};
 			socket.onclose = (event: CloseEvent) => {
@@ -682,6 +690,7 @@ export class KWM implements IWebRTCManagerContainer {
 				}
 				console.debug('socket closed', event);
 				this.socket = undefined;
+				this.self = undefined;
 				this.closing = false;
 				this.connected = false;
 				this.connecting = false;
@@ -703,6 +712,7 @@ export class KWM implements IWebRTCManagerContainer {
 				}
 				console.debug('socket error', event);
 				this.socket = undefined;
+				this.self = undefined;
 				this.connected = false;
 				this.connecting = false;
 				this.dispatchErrorEvent({
@@ -788,7 +798,10 @@ export class KWM implements IWebRTCManagerContainer {
 		switch (message.type) {
 			case 'hello': {
 				console.debug('server hello', message);
-				this.webrtc.handleHello(message as IRTMTypeHello, this.user);
+				const helloMessage = message as IRTMTypeHello;
+				this.self = helloMessage.self;
+				this.webrtc.handleHello(helloMessage, this.user);
+				this.dispatchStateChangedEvent();
 				break;
 			}
 			case 'goodbye':

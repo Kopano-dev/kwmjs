@@ -35,6 +35,7 @@ export const defaultAPIVersion = 'v2';
 export interface IKWMOptions {
 	authorizationType?: string;
 	authorizationValue?: string;
+	authorizationAuth?: string;
 }
 
 export interface IKWMEndpoints {
@@ -543,6 +544,9 @@ export class KWM implements IWebRTCManagerContainer {
 		headers.set('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		const params = new URLSearchParams();
 		params.set(authMode, auth);
+		if (this.options.authorizationAuth) {
+			params.set('auth', this.options.authorizationAuth);
+		}
 
 		return fetch(url, {
 			body: params.toString(),

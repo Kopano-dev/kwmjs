@@ -62,6 +62,8 @@ export class GroupController {
 		const previous = this.members;
 		this.members = members;
 
-		this.webrtc.doMesh(members, this.record);
+		this.webrtc.doMesh(members, this.record).catch(err => {
+			console.error('failed to establish mesh for all group members', err);
+		});
 	}
 }

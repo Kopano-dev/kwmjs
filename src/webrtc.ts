@@ -568,7 +568,10 @@ export class WebRTCManager extends WebRTCBaseManager {
 			this.peers.set(record.id, record);
 
 			console.log('webrtc doMesh outbound', user, record.ref, record.hash);
-			promises.push(this.doAnswer(user));
+			promises.push(this.doAnswer(user).catch(err => {
+				console.warn('webrtc doMesh failed to answer outbound', err, user, record.ref, record.hash);
+				return '';
+			}));
 		}
 
 		// Wait on all.

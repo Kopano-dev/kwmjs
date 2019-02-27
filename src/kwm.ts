@@ -790,14 +790,14 @@ export class KWM implements IWebRTCManagerContainer {
 				clearTimeout(replyTimeout.timeout);
 				replyTimeout.resolve(message);
 			} else {
-				console.log('received reply without handler', reply);
+				console.log('received kwm reply without handler', reply);
 			}
 			return;
 		}
 
 		switch (message.type) {
 			case 'hello': {
-				console.debug('server hello', message);
+				console.debug('kwm server hello', message);
 				const helloMessage = message as IRTMTypeHello;
 				this.self = helloMessage.self;
 				this.webrtc.handleHello(helloMessage, this.user);
@@ -805,7 +805,7 @@ export class KWM implements IWebRTCManagerContainer {
 				break;
 			}
 			case 'goodbye':
-				console.debug('server goodbye, close connection', message);
+				console.debug('kwm server goodbye, close connection', message);
 				this.reconnectAttempts = 1; // NOTE(longsleep): avoid instant reconnect.
 				this.closeWebsocket(this.socket);
 				this.connected = false;
@@ -814,11 +814,11 @@ export class KWM implements IWebRTCManagerContainer {
 				this.webrtc.handleWebRTCMessage(message as IRTMTypeWebRTC);
 				break;
 			case 'error':
-				console.warn('server error', message);
+				console.warn('kwm server error', message);
 				this.dispatchErrorEvent((message as IRTMTypeError).error);
 				break;
 			default:
-				console.debug('unknown type', message.type, message);
+				console.debug('unknown kwm message type', message.type, message);
 				break;
 		}
 	}

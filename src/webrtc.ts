@@ -9,8 +9,15 @@
 'use strict';
 
 import * as SimplePeer from 'simple-peer';
-import { KWMErrorEvent, WebRTCPeerEvent, WebRTCStreamEvent, WebRTCStreamTrackEvent } from './events';
+import {
+	KWMErrorEvent,
+	WebRTCAnnounceStreamsEvent,
+	WebRTCPeerEvent,
+	WebRTCStreamEvent,
+	WebRTCStreamTrackEvent,
+} from './events';
 import { GroupController } from './group';
+import { P2PController } from './p2p';
 import { IRTMDataProfile, IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeHello,
 	IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
@@ -106,8 +113,14 @@ export class WebRTCBaseManager {
 	 * whenever [[WebRTCStreamTrackEvent]]s are triggered.
 	 */
 	public ontrack?: (event: WebRTCStreamTrackEvent) => void;
+	/**
+	 * Event handler for [[WebRTCAnnounceStreamsEvent]]. Set to a function to
+	 * get called whenever [[WebRTCAnnounceStreamsEvent]]s are triggered.
+	 */
+	public onannouncestreams?: (event: WebRTCAnnounceStreamsEvent) => void;
 
 	protected kwm: IWebRTCManagerContainer;
+	protected p2p: P2PController;
 
 	protected localStream?: MediaStream;
 	protected user?: string;
@@ -123,7 +136,50 @@ export class WebRTCBaseManager {
 	 */
 	constructor(kwm: IWebRTCManagerContainer) {
 		this.kwm = kwm;
+		this.p2p = new P2PController(this);
 		this.peers = new Map<string, PeerRecord>();
+	}
+
+	/**
+	 * Generic event dispatcher. Dispatches callback functions based on event
+	 * types. Throws error for unknown event types. If a known event type has no
+	 * event handler registered, dispatchEvent does nothing.
+	 *
+	 * @param event Event to be dispatched.
+	 * @param async Boolean value if the event should trigger asynchronously.
+	 */
+	public dispatchEvent(event: any, async?: boolean): void {
+		if (async) {
+			setTimeout(() => {
+				this.dispatchEvent(event, false);
+			}, 0);
+			return;
+		}
+
+		switch (event.constructor.getName()) {
+			case WebRTCPeerEvent.getName():
+				if (this.onpeer) {
+					this.onpeer(event);
+				}
+				break;
+			case WebRTCStreamEvent.getName():
+				if (this.onstream) {
+					this.onstream(event);
+				}
+				break;
+			case WebRTCStreamTrackEvent.getName():
+				if (this.ontrack) {
+					this.ontrack(event);
+				}
+				break;
+			case WebRTCAnnounceStreamsEvent.getName():
+				if (this.onannouncestreams) {
+					this.onannouncestreams(event);
+				}
+				break;
+			default:
+				throw new Error('unknown event: ' + event.constructor.getName());
+		}
 	}
 
 	protected setChannelOptions(options: ChannelOptions): ChannelOptions {
@@ -153,7 +209,7 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.debug('peerconnection error', err);
+			console.debug('peerconnection error', pc._id, err);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.error', record, err));
 
 			if (!record.reconnect) {
@@ -180,7 +236,7 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.debug('peerconnection signal', data);
+			console.debug('peerconnection signal', pc._id, data);
 			const payload = {
 				channel: this.channel,
 				data,
@@ -202,7 +258,8 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.debug('peerconnection connect');
+			console.debug('peerconnection connect', pc._id);
+			this.p2p.handleConnect(pc);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.connect', record, pc));
 		});
 		pc.on('close', () => {
@@ -210,8 +267,9 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.log('peerconnection close');
+			console.log('peerconnection close', pc._id);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.closed', record, pc));
+			this.p2p.handleClose(pc);
 			record.pc = undefined;
 		});
 		pc.on('track', (track, mediaStream) => {
@@ -219,7 +277,7 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.debug('peerconnection track', track, mediaStream);
+			console.debug('peerconnection track', pc._id, track, mediaStream);
 			this.dispatchEvent(new WebRTCStreamTrackEvent(this, 'pc.track', record, track, mediaStream));
 		});
 		pc.on('stream', mediaStream => {
@@ -227,15 +285,22 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.debug('peerconnection stream', mediaStream);
+			// console.debug('peerconnection stream', pc._id, mediaStream);
 			this.dispatchEvent(new WebRTCStreamEvent(this, 'pc.stream', record, mediaStream));
+		});
+		pc.on('data', data => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			this.p2p.handleData(pc, data);
 		});
 		pc.on('iceStateChange', state => {
 			if (pc !== record.pc) {
 				return;
 			}
 
-			console.debug('iceStateChange', state);
+			console.debug('iceStateChange', pc._id, state);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.iceStateChange', record, state));
 		});
 		pc.on('signalingStateChange', state => {
@@ -243,14 +308,15 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.debug('signalingStateChange', state);
+			console.debug('signalingStateChange', pc._id, state);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.signalingStateChange', record, state));
 		});
 
 		record.pc = pc;
 		record.rpcid = rpcid;
 
-		console.debug('peerconnection new');
+		console.debug('peerconnection new', pc._id);
+		this.p2p.registerConnection(pc, record.user, this.config);
 		this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.new', record, pc));
 
 		return pc;
@@ -265,43 +331,6 @@ export class WebRTCBaseManager {
 		const { localStreamTarget } = this.channelOptions;
 
 		return !localStreamTarget || localStreamTarget === record;
-	}
-
-	/**
-	 * Generic event dispatcher. Dispatches callback functions based on event
-	 * types. Throws error for unknown event types. If a known event type has no
-	 * event handler registered, dispatchEvent does nothing.
-	 *
-	 * @param event Event to be dispatched.
-	 * @param async Boolean value if the event should trigger asynchronously.
-	 */
-	protected dispatchEvent(event: any, async?: boolean): void {
-		if (async) {
-			setTimeout(() => {
-				this.dispatchEvent(event, false);
-			}, 0);
-			return;
-		}
-
-		switch (event.constructor.getName()) {
-			case WebRTCPeerEvent.getName():
-				if (this.onpeer) {
-					this.onpeer(event);
-				}
-				break;
-			case WebRTCStreamEvent.getName():
-				if (this.onstream) {
-					this.onstream(event);
-				}
-				break;
-			case WebRTCStreamTrackEvent.getName():
-				if (this.ontrack) {
-					this.ontrack(event);
-				}
-				break;
-			default:
-				throw new Error('unknown event: ' + event.constructor.getName());
-		}
 	}
 }
 
@@ -612,6 +641,10 @@ export class WebRTCManager extends WebRTCBaseManager {
 				}
 			}
 		});
+	}
+
+	public setScreenshareStream(id: string, stream?: MediaStream): void {
+		this.p2p.setLocalStream(id, 'screenshare', stream);
 	}
 
 	/**

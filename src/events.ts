@@ -8,7 +8,21 @@
 
 'use strict';
 
-import { PeerRecord } from './webrtc';
+import * as SimplePeer from 'simple-peer';
+
+import { IRTMDataProfile } from './rtm';
+
+export interface IPeerRecord {
+	user: string;
+	pc?: SimplePeer;
+	profile?: IRTMDataProfile;
+}
+
+export interface IP2PAnnouncement {
+	id: string;
+	kind: string;
+	token: string;
+}
 
 export class BaseEvent {
 	public static eventName = 'BaseEvent';
@@ -77,10 +91,10 @@ export class WebRTCPeerEvent extends BaseEvent {
 
 	public event: string;
 	public channel: string = '';
-	public record: PeerRecord;
+	public record: IPeerRecord;
 	public details: any;
 
-	constructor(target: any, event: string, record: PeerRecord, details?: any) {
+	constructor(target: any, event: string, record: IPeerRecord, details?: any) {
 		super(target);
 		this.event = event;
 		this.record = record;
@@ -92,10 +106,12 @@ export class WebRTCStreamEvent extends WebRTCPeerEvent {
 	public static eventName = 'WebRTCStreamEvent';
 
 	public stream: MediaStream;
+	public token: string;
 
-	constructor(target: any, event: string, record: PeerRecord, stream: MediaStream) {
+	constructor(target: any, event: string, record: IPeerRecord, stream: MediaStream, token: string = '') {
 		super(target, event, record);
 		this.stream = stream;
+		this.token = token;
 	}
 }
 
@@ -104,10 +120,29 @@ export class WebRTCStreamTrackEvent extends WebRTCPeerEvent {
 
 	public track: MediaStreamTrack;
 	public stream: MediaStream;
+	public token: string;
 
-	constructor(target: any, event: string, record: PeerRecord, track: MediaStreamTrack, stream: MediaStream) {
+	constructor(
+		target: any, event: string, record: IPeerRecord, track: MediaStreamTrack, stream: MediaStream,
+		token: string = '') {
 		super(target, event, record);
 		this.track = track;
 		this.stream = stream;
+		this.token = token;
+	}
+}
+
+export class WebRTCAnnounceStreamsEvent extends WebRTCPeerEvent {
+	public static eventName = 'WebRTCAnnounceStreamsEvent';
+
+	public added: IP2PAnnouncement[];
+	public removed: IP2PAnnouncement[];
+
+	constructor(
+		target: any, event: string, record: IPeerRecord, added: IP2PAnnouncement[],
+		removed: IP2PAnnouncement[]) {
+		super(target, event, record);
+		this.added = added;
+		this.removed = removed;
 	}
 }

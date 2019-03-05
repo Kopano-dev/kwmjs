@@ -95,6 +95,7 @@ class StreamRecord {
 						offerToReceiveAudio: false,
 						offerToReceiveVideo: !stream,
 					},
+					kind,
 					offerConstraints: {
 						...controller.webrtc.options.offerConstraints,
 						offerToReceiveAudio: false,
@@ -133,6 +134,17 @@ class StreamRecord {
 				streams,
 			});
 			this.connections.set(record.id, pc);
+		}
+
+		// Handle imcoming messages.
+		switch (message.subtype) {
+			case 'webrtc_signal':
+				if (message.data && message.data.sdp && this.options.remoteSDPTransform) {
+					// Remote SDP transform support.
+					message.data.sdp = this.options.remoteSDPTransform(message.data.sdp, this.options.kind);
+				}
+				pc.signal(message.data);
+				break;
 		}
 
 		return pc;
@@ -329,12 +341,17 @@ export class P2PController {
 	}
 
 	public getPeerConnection(record: P2PRecord, opts?: any): SimplePeer {
-		const { streams, localSDPTransform, remoteSDPTransform, source, ...options } = opts;
+		const { streams, localSDPTransform, remoteSDPTransform, source, kind, ...options } = opts;
 
 		const pc = new SimplePeer({
 			config: record.config,
 			initiator: record.initiator,
-			sdpTransform: localSDPTransform,
+			sdpTransform: (sdp: any) => {
+				if (localSDPTransform) {
+					return localSDPTransform(sdp, kind);
+				}
+				return sdp;
+			},
 			streams,
 			trickle: true,
 			...options,
@@ -591,17 +608,6 @@ export class P2PController {
 			console.debug('webrtc no connection for p2p message with callback source', message.source);
 			return;
 		}
-
-		switch (message.subtype) {
-			case 'webrtc_signal':
-				if (message.data && message.data.sdp && this.webrtc.options.remoteSDPTransform) {
-					// Remote SDP transform support.
-					message.data.sdp = this.webrtc.options.remoteSDPTransform(message.data.sdp);
-				}
-				pc.signal(message.data);
-				break;
-		}
-
 	}
 
 	/**

@@ -87,7 +87,7 @@ class StreamRecord {
 		// Check for supported kinds.
 		switch (kind) {
 			case 'screenshare':
-				console.log('xxx p2p screenshare announced, preparing', controller.webrtc.options);
+				console.debug('p2p screenshare announced, preparing', controller.webrtc.options);
 				this.options = {
 					...controller.webrtc.options,
 					answerConstraints: {
@@ -114,7 +114,7 @@ class StreamRecord {
 	}
 
 	public getP2PConnection = (record: P2PRecord, message: IRTMTypeWebRTC): (SimplePeer | undefined) => {
-		// console.debug('xxx p2p stream record callback', record, message);
+		// console.debug('p2p stream record callback', record, message);
 		if (message.subtype !== 'webrtc_signal') {
 			// Do nothing for other messages.
 			return;
@@ -122,7 +122,7 @@ class StreamRecord {
 
 		let pc = this.connections.get(record.id);
 		if (!pc) {
-			// console.debug('xxx p2p start webrtc, callback triggered', record.id, this.connections);
+			// console.debug('p2p start webrtc, callback triggered', record.id, this.connections);
 			const streams: MediaStream[] = [];
 			if (this.stream) {
 				streams.push(this.stream);
@@ -136,6 +136,14 @@ class StreamRecord {
 		}
 
 		return pc;
+	}
+
+	public destroy(): void {
+		this.connections.forEach((pc: SimplePeer) => {
+			pc.destroy();
+		});
+		this.connections.clear();
+		this.stream = undefined;
 	}
 }
 
@@ -164,12 +172,11 @@ export class P2PController {
 	}
 
 	public registerConnection(pc: SimplePeer, user: string, config: any): void {
-		console.debug('xxx p2p add', pc._id, pc.initiator, user, config);
+		// console.debug('p2p add', pc._id, pc.initiator, user, config);
 		const id = this.getConnectionID(pc);
-
 		const old = this.connections.get(id);
 		if (old) {
-			console.warn('xxx p2p controller add of existing connection', id);
+			console.warn('p2p controller add of existing connection', id);
 		}
 		const record = new P2PRecord(id, pc, user, config, pc.initiator);
 		this.connections.set(id, record);
@@ -195,10 +202,11 @@ export class P2PController {
 			this.localStreams.delete(id);
 			if (old) {
 				this.callbacks.delete(old.token);
+				record = old;
 			}
 		}
 
-		console.log('xxx p2p set stream', record, old);
+		// console.debug('p2p set stream', record, old);
 
 		// TODO(longsleep):
 		// announce stream changes to all connections.
@@ -206,7 +214,7 @@ export class P2PController {
 			// 1. check if stream is replaced, if so update existing connections
 			//    with replaceStream.
 			record.connections.forEach((pc: SimplePeer, key: string) => {
-				console.log('xxx p2p update stream', pc, key);
+				// console.debug('p2p update stream', pc, key);
 				// TODO(longsleep): Use replace track for certain kinds.
 				if (old.stream) {
 					pc.removeStream(old.stream);
@@ -218,10 +226,7 @@ export class P2PController {
 		} else if (old && record) {
 			// 2. check if stream is removed, kill of all existing connections for
 			//    this stream.
-			record.connections.forEach((pc: SimplePeer) => {
-				pc.destroy();
-			});
-			record.connections.clear();
+			record.destroy();
 		}
 
 		// 3. announce stream changes to p2p.
@@ -229,15 +234,15 @@ export class P2PController {
 	}
 
 	public handleConnect(pc: SimplePeer): void {
-		console.debug('xxx p2p connect', pc._id);
+		// console.debug('p2p connect', pc._id);
 		const id = this.getConnectionID(pc);
 		const record = this.connections.get(id);
 		if (!record) {
-			console.warn('xxx p2p controller connect of unknown connection', id);
+			console.warn('p2p controller connect of unknown connection', id);
 			return;
 		}
 		if (record.connected) {
-			console.warn('xxx p2p controller connect when already connected', id);
+			console.warn('p2p controller connect when already connected', id);
 			return;
 		}
 		if (record.pc !== pc) {
@@ -269,7 +274,7 @@ export class P2PController {
 	}
 
 	public handleClose(pc: SimplePeer): void {
-		console.debug('xxx p2p close', pc._id);
+		// console.debug('p2p close', pc._id);
 		const id = this.getConnectionID(pc);
 		const record = this.connections.get(id);
 		if (record && record.pc !== pc) {
@@ -277,36 +282,34 @@ export class P2PController {
 			return;
 		}
 		if (record) {
-			const ready = record.ready;
-
 			record.ready = false;
 			record.connected = false;
 			record.handshake = undefined;
 			this.connections.delete(id);
-
-			if (ready) {
-				// TODO(longsleep): Clean up stream record connections.
-			}
+			record.streams.forEach(streamRecord => {
+				streamRecord.destroy();
+			});
+			record.streams.clear();
 		}
 	}
 
 	public handleData(pc: SimplePeer, data: string): void {
-		// console.debug('xxx data channel message', pc._id, data);
+		// console.debug('data channel message', pc._id, data);
 		const id = this.getConnectionID(pc);
 		const record = this.connections.get(id);
 		if (!record) {
-			console.warn('xxx p2p controller data for unknown connection', id);
+			console.warn('p2p controller data for unknown connection', id);
 			return;
 		}
 		if (record.pc !== pc) {
-			throw new Error('xxx p2p connection does not match record');
+			throw new Error('p2p connection does not match record');
 		}
 
 		let message: IRTMTypeEnvelope;
 		try {
 			message = JSON.parse(data);
 		} catch (err) {
-			console.debug('xxx failed to parse data channel message as JSON - message ignored', id, err);
+			console.debug('failed to parse data channel message as JSON - message ignored', id, err);
 			return;
 		}
 
@@ -320,7 +323,7 @@ export class P2PController {
 				break;
 
 			default:
-				console.debug('xxx unknown data channel message type', id, message.type, message);
+				console.debug('unknown data channel message type', id, message.type);
 				break;
 		}
 	}
@@ -337,11 +340,11 @@ export class P2PController {
 			...options,
 		});
 		pc.on('error', err => {
-			console.log('xxx p2p connection error', pc._id, err);
+			console.warn('p2p connection error', pc._id, err);
 			this.webrtc.dispatchEvent(new WebRTCPeerEvent(this.webrtc, 'pc.error', record, err));
 		});
 		pc.on('signal', data => {
-			console.debug('p2p connection signal', pc._id, data);
+			// console.debug('p2p connection signal', pc._id, data);
 			const payload = {
 				data,
 				id: 0,
@@ -351,7 +354,7 @@ export class P2PController {
 				type: 'webrtc',
 				v: WebRTCBaseManager.version,
 			};
-			// console.debug('>>> send p2p signal', payload);
+			// console.debug('>>> send p2p signal'te, payload);
 			this.sendDatachannelPayload(payload, 0, record.pc);
 		});
 		pc.on('connect', () => {
@@ -362,22 +365,14 @@ export class P2PController {
 			console.debug('p2p connection close', pc._id);
 			this.webrtc.dispatchEvent(new WebRTCPeerEvent(this.webrtc, 'pc.closed', record, pc));
 		});
-		/*
-		pc.on('track', (track, mediaStream) => {
-			console.log('xxx p2p connection track', track, mediaStream);
-		});
-		pc.on('stream', mediaStream => {
-			console.log('xxx p2p connection stream', mediaStream);
-		});
-		*/
 		pc.on('iceStateChange', state => {
-			console.debug('p2p connection iceStateChange', pc._id, state);
+			console.debug('p2p iceStateChange', pc._id, state);
 		});
 		pc.on('signalingStateChange', state => {
 			console.debug('p2p signalingStateChange', pc._id, state);
 		});
 
-		console.debug('p2p2 peerconnection new', pc._id);
+		console.debug('p2p peerconnection new', pc._id);
 		return pc;
 	}
 
@@ -408,7 +403,7 @@ export class P2PController {
 
 		if (record) {
 			if (!record.ready || !record.pc) {
-				throw new Error('xxx p2p record not ready to announce streams');
+				throw new Error('p2p record not ready to announce streams');
 			}
 			this.sendDatachannelPayload(payload, 0, record.pc);
 		} else {
@@ -422,14 +417,13 @@ export class P2PController {
 	}
 
 	private handleAnnounceStreams(record: P2PRecord, message: IP2PTypeAnnounceStreams): void {
-		console.log('xxx announce stream', record, message.streams);
+		console.debug('p2p announce stream', record, message.streams);
 		// Create and drop extra record connections for each announced stream.
 		const status = new Map<string, boolean>();
 		const added: IP2PStreamAnnouncement[] = [];
 		const streams = record.streams;
 
 		message.streams.forEach(streamAnnouncement => {
-			console.log('xxx', streamAnnouncement);
 			const streamRecord = streams.get(streamAnnouncement.id);
 			if (streamRecord) {
 				// Already got that.
@@ -455,6 +449,7 @@ export class P2PController {
 				streams.delete(streamRecord.id);
 				removed.push(streamRecord);
 				// Remove connections for removed streams.
+				streamRecord.destroy();
 			}
 		});
 
@@ -464,7 +459,7 @@ export class P2PController {
 		}
 		this.webrtc.dispatchEvent(
 			new WebRTCAnnounceStreamsEvent(this.webrtc, 'p2p.announce_streams', record, added, removed));
-		console.log('xxx p2p streams have changed', removed.length, added.length);
+		console.debug('p2p streams have changed', removed.length, added.length);
 
 		added.forEach(streamAnnouncement => {
 			const id = streamAnnouncement.id;
@@ -474,7 +469,7 @@ export class P2PController {
 				streamAnnouncement.kind,
 			);
 			if (streamRecord.kind !== streamAnnouncement.kind) {
-				console.log('xxx p2p rejected stream announcement kind');
+				console.warn('p2p rejected new stream announcement kind for', streamRecord.kind);
 				return;
 			}
 
@@ -487,9 +482,9 @@ export class P2PController {
 			const old = streamRecord.connections.get(id);
 			if (old) {
 				// Already have a connection.
-				console.log('xxx p2p already have that connection, so keep it and do nothing?');
+				console.debug('p2p already have that connection, so keep it and do nothing', record.id, id);
 			} else {
-				console.log('xxx p2p start webrtc, announce received', record.id);
+				console.debug('p2p start webrtc, announce received', record.id, id);
 				const pc = this.getPeerConnection(record, {
 					...streamRecord.options,
 					source: streamAnnouncement.token, // NOTE(longsleep): Use source to pass along token.
@@ -513,11 +508,11 @@ export class P2PController {
 	}
 
 	private handleP2PMessage(record: P2PRecord, message: IRTMTypeSubTypeEnvelope): void {
-		// console.debug('xxx p2p message', record.id, message.subtype, message);
+		// console.debug('p2p message', record.id, message.subtype, message);
 		switch (message.subtype) {
 			case 'handshake': {
 				if (record.handshake) {
-					console.warn('xxx p2p connection received handshake, but already have handshaked', record.id);
+					console.warn('p2p connection received handshake, but already have handshaked', record.id);
 					return;
 				}
 
@@ -550,13 +545,13 @@ export class P2PController {
 				const handshake = message as IP2PTypeHandshake;
 				// console.debug('handshake reply', handshake.v, handshake.ts, record.ts);
 				if (handshake.ts !== record.ts || handshake.v !== P2PController.version) {
-					console.warn('xxx p2p handshake failed, data mismatch', record.id, handshake.ts, record.ts);
+					console.warn('p2p handshake failed, data mismatch', record.id, handshake.ts, record.ts);
 					return;
 				}
 				const now = new Date().getTime();
 				record.ready = true;
 				const duration = now - handshake.ts;
-				console.info('xxx p2p handshake success after', record.id, duration);
+				console.info('p2p handshake success after', record.id, duration);
 				// TODO(longsleep): Make a ready handler.
 				this.announceStreams(record);
 				break;
@@ -570,7 +565,7 @@ export class P2PController {
 			}
 
 			default:
-				console.debug('xxx unknown p2p message subtype', record.id, message.subtype, message);
+				console.debug('unknown p2p message subtype', record.id, message.subtype);
 				break;
 		}
 	}
@@ -579,21 +574,21 @@ export class P2PController {
 		// console.debug('<<< webrtc', message);
 
 		if (!message.v || message.v < WebRTCBaseManager.version) {
-			console.log('xxx webrtc ignoring p2p message with outdated version', message.v, message);
+			console.debug('webrtc ignoring p2p message with outdated version', message.v, message);
 			return;
 		}
 
 		// TODO find our end by looking at the source which is a token we previously created.
 		const callback = this.callbacks.get(message.source);
 		if (!callback) {
-			console.log('xxx webrtc ignoring p2p message with unknown callback source', message.source);
+			console.debug('webrtc ignoring p2p message with unknown callback source', message.source);
 			// Ignore unknown callbacks
 			return;
 		}
 
 		const pc = callback(record, message);
 		if (!pc) {
-			console.log('xxx webrtc no connection for p2p message with callback source', message.source);
+			console.debug('webrtc no connection for p2p message with callback source', message.source);
 			return;
 		}
 
@@ -630,7 +625,7 @@ export class P2PController {
 			}
 
 			payload.id = ++datachannelSequence;
-			console.debug('>>> payload', payload.id, payload, pc._id);
+			// console.debug('>>> payload', payload.id, payload, pc._id);
 			try {
 				pc.send(JSON.stringify(payload));
 			} catch (err) {
@@ -639,11 +634,6 @@ export class P2PController {
 			}
 			if (replyTimeout > 0) {
 				reject(new Error('p2p data channel reply not implemented'));
-				/*const timeout = window.setTimeout(() => {
-					reject(new Error('timeout'));
-				}, replyTimeout);
-				this.replyHandlers.set(payload.id, {resolve, timeout});
-				*/
 			} else {
 				setTimeout(resolve, 0);
 			}

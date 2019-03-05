@@ -236,7 +236,7 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.debug('peerconnection signal', pc._id, data);
+			// console.debug('peerconnection signal', pc._id, data);
 			const payload = {
 				channel: this.channel,
 				data,
@@ -1110,6 +1110,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 				reason,
 				state: record.ref,
 			}).then(() => {
+				return Promise.resolve(true);
+			}).catch(err => {
+				console.error('failed to send hangup signal', channel, err);
 				return Promise.resolve(true);
 			});
 		} else {

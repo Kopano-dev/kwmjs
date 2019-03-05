@@ -251,7 +251,9 @@ export class WebRTCBaseManager {
 				v: WebRTCManager.version,
 			};
 			// console.debug('>>> send signal', payload);
-			this.kwm.sendWebSocketPayload(payload, undefined, record);
+			this.kwm.sendWebSocketPayload(payload, undefined, record).catch(err => {
+				console.error('peerconnection signal websocket send failed', pc._id, err);
+			});
 		});
 		pc.on('connect', () => {
 			if (pc !== record.pc) {
@@ -819,14 +821,16 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 					if (this.channel) {
 						// busy
-						console.warn('webrtc incoming call while already have a call');
+						console.warn('webrtc incoming call while already have a call', this.channel);
 						// TODO(longsleep): Add general reply to server for calls to get busy
 						// handling right.
 						this.sendWebrtc('webrtc_call', message.channel, record, {
 							accept: false,
 							reason: 'reject_busy',
 							state: record.ref,
-						}, 0, record.transaction || '');
+						}, 0, record.transaction || '').catch(err => {
+							console.error('webrtc failed to reject busy', this.channel, err);
+						});
 						return;
 					}
 					if (this.channel && this.channel !== message.channel) {

@@ -717,7 +717,7 @@ export class KWM implements IWebRTCManagerContainer {
 				this.connecting = false;
 				this.dispatchErrorEvent({
 					code: 'websocket_error',
-					msg: '' + event,
+					msg: '' + event.type || '', // Websocket error event have no useful description - meh :/
 				});
 				this.dispatchStateChangedEvent();
 			};

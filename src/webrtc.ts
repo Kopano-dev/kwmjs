@@ -56,6 +56,9 @@ export class WebRTCOptions {
 	public remoteSDPTransform?: (sdp: string) => string;
 }
 
+/**
+ * ChannelOptions bind [[PeerRecord]]s to channels.
+ */
 export class ChannelOptions {
 	public localStreamTarget?: PeerRecord;
 }
@@ -418,6 +421,14 @@ export class WebRTCManager extends WebRTCBaseManager {
 		return this.channel;
 	}
 
+	/**
+	 * Rejects a WebRTC call request via RTM to the provided user with the
+	 * provided reason.
+	 *
+	 * @param user The User ID of the peer to reject.
+	 * @param reason The reason sent to the peer why reject was sent.
+	 * @returns Promise providing the accociated channel ID.
+	 */
 	public async doReject(user: string, reason: string = 'reject'): Promise<string> {
 		console.debug('webrtc doReject', user, reason);
 
@@ -610,6 +621,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 			return channel;
 		});
 	}
+
 	/**
 	 * Set the local media stream. That stream will be attached to all new
 	 * Peers which are created afterwards and added to all existing Peers
@@ -645,6 +657,13 @@ export class WebRTCManager extends WebRTCBaseManager {
 		});
 	}
 
+	/**
+	 * Set the local screen share stream with id as p2p stream.
+	 *
+	 * @param id ID of the stream.
+	 * @param stream MediaStream object. Do not provide this parameter to remove
+	 *               a previously stream.
+	 */
 	public setScreenshareStream(id: string, stream?: MediaStream): void {
 		this.p2p.setLocalStream(id, 'screenshare', stream);
 	}

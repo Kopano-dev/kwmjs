@@ -32,12 +32,18 @@ export const authorizationTypeToken = 'Token';
 export const authorizationTypeBearer = 'Bearer';
 export const defaultAPIVersion = 'v2';
 
+/**
+ * IKWMOptions is an interface to hold options relevant for KWM connections.
+ */
 export interface IKWMOptions {
 	authorizationType?: string;
 	authorizationValue?: string;
 	authorizationAuth?: string;
 }
 
+/**
+ * IKWMEndpoints is an interface to hold KWM REST API endpoint addresses.
+ */
 export interface IKWMEndpoints {
 	rtmConnect: string;
 	rtmTurn: string;

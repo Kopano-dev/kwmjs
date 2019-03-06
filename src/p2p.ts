@@ -40,6 +40,9 @@ interface IP2PTypeAnnounceStreams extends IRTMTypeSubTypeEnvelope {
 	streams: IP2PStreamAnnouncement[];
 }
 
+/**
+ * A P2PRecord represents a current or future connections p2p status.
+ */
 class P2PRecord {
 	public id: string = '';
 	public pc: SimplePeer;
@@ -66,6 +69,9 @@ class P2PRecord {
 	}
 }
 
+/**
+ * A StreamRecord represents a current or future p2p stream with its connections.
+ */
 class StreamRecord {
 	public static version: number = 1;
 
@@ -114,7 +120,15 @@ class StreamRecord {
 		this.kind = kind;
 	}
 
-	public getP2PConnection = (record: P2PRecord, message: IRTMTypeWebRTC): (SimplePeer | undefined) => {
+	/**
+	 * Gets or creates a new [[SimplePeer]] connection for the accociated stream using the
+	 * provided p2p record.
+	 *
+	 * @param record P2p record.
+	 * @param message P2p WebRTC message as received.
+	 * @returns Connection for the accociated stream for the provided record.
+	 */
+	public handleWebRTC = (record: P2PRecord, message: IRTMTypeWebRTC): (SimplePeer | undefined) => {
 		// console.debug('p2p stream record callback', record, message);
 		if (message.subtype !== 'webrtc_signal') {
 			// Do nothing for other messages.
@@ -150,6 +164,9 @@ class StreamRecord {
 		return pc;
 	}
 
+	/**
+	 * Destroys the accoicated stream reference and terminates all its connections.
+	 */
 	public destroy(): void {
 		this.connections.forEach((pc: SimplePeer) => {
 			pc.destroy();
@@ -159,6 +176,12 @@ class StreamRecord {
 	}
 }
 
+/**
+ * A P2PController bundles functionality for direct communication between peers via
+ * a peer connections data channel Connections are registeed with the controller
+ * and then automatically establish a simple JSON based protocol for extended
+ * direct signaling between each other..
+ */
 export class P2PController {
 	/**
 	 * Data channel payload version. All data channel payloads will include this
@@ -183,17 +206,15 @@ export class P2PController {
 		this.callbacks = new Map<string, (record: P2PRecord, message: IRTMTypeWebRTC) => SimplePeer | undefined>();
 	}
 
-	public registerConnection(pc: SimplePeer, user: string, config: any): void {
-		// console.debug('p2p add', pc._id, pc.initiator, user, config);
-		const id = this.getConnectionID(pc);
-		const old = this.connections.get(id);
-		if (old) {
-			console.warn('p2p controller add of existing connection', id);
-		}
-		const record = new P2PRecord(id, pc, user, config, pc.initiator);
-		this.connections.set(id, record);
-	}
-
+	/**
+	 * Set the local media stream. Streams will be automatically announced to
+	 * all registered peers if required.
+	 *
+	 * @param id Id of the stream as used in announcement.
+	 * @param kind Kind of the stream as used in announcement.
+	 * @param stream MediaStream object. Do not provide this parameter to no
+	 *        longer announce that stream.
+	 */
 	public setLocalStream(id: string, kind: string, stream?: MediaStream): void {
 		const old = this.localStreams.get(id);
 		let record: StreamRecord | undefined;
@@ -209,7 +230,7 @@ export class P2PController {
 				record.token = getRandomString(16);
 			}
 			this.localStreams.set(id, record);
-			this.callbacks.set(record.token, record.getP2PConnection);
+			this.callbacks.set(record.token, record.handleWebRTC);
 		} else {
 			this.localStreams.delete(id);
 			if (old) {
@@ -245,6 +266,30 @@ export class P2PController {
 		this.announceStreams(undefined, true);
 	}
 
+	/**
+	 * Registers peer connections per user with config.
+	 *
+	 * @param pc Connection to register.
+	 * @param user Owner user of the provided connection.
+	 * @param config Configuration passed along to newly created records.
+	 */
+	public registerConnection(pc: SimplePeer, user: string, config: any): void {
+		// console.debug('p2p add', pc._id, pc.initiator, user, config);
+		const id = this.getConnectionID(pc);
+		const old = this.connections.get(id);
+		if (old) {
+			console.warn('p2p controller add of existing connection', id);
+		}
+		const record = new P2PRecord(id, pc, user, config, pc.initiator);
+		this.connections.set(id, record);
+	}
+
+	/**
+	 * Event handler when a peer connection has connected. To have any effect, the
+	 * connection must have been registered before.
+	 *
+	 * @param pc Connection which triggered this event.
+	 */
 	public handleConnect(pc: SimplePeer): void {
 		// console.debug('p2p connect', pc._id);
 		const id = this.getConnectionID(pc);
@@ -285,6 +330,12 @@ export class P2PController {
 		this.sendDatachannelPayload(payload, 0, pc);
 	}
 
+	/**
+	 * Event handler when a peer connection has closed. To have any effect, the
+	 * connection must have been registered before.
+	 *
+	 * @param pc Connection which triggered this event.
+	 */
 	public handleClose(pc: SimplePeer): void {
 		// console.debug('p2p close', pc._id);
 		const id = this.getConnectionID(pc);
@@ -305,6 +356,13 @@ export class P2PController {
 		}
 	}
 
+	/**
+	 * Event handler when a peer connection has received data on the data channel.
+	 * To have any effect, the connection must have been registered before.
+	 *
+	 * @param pc Connection which triggered this event.
+	 * @param data Data as received.
+	 */
 	public handleData(pc: SimplePeer, data: string): void {
 		// console.debug('data channel message', pc._id, data);
 		const id = this.getConnectionID(pc);
@@ -340,6 +398,14 @@ export class P2PController {
 		}
 	}
 
+	/**
+	 * Creates a new connection for the provided record with the provided options. The new
+	 * connections signals are bound to the associated manager and send via data channel to
+	 * the peer target provided in the record.
+	 *
+	 * @param record Record to use as peer target.
+	 * @param opts RTCPeerConnection options as passed along to [[SimplePeer]].
+	 */
 	public getPeerConnection(record: P2PRecord, opts?: any): SimplePeer {
 		const { streams, localSDPTransform, remoteSDPTransform, source, kind, ...options } = opts;
 
@@ -451,7 +517,7 @@ export class P2PController {
 				if (streamRecord.token !== streamAnnouncement.token) {
 					this.callbacks.delete(streamRecord.token);
 					streamRecord.token = streamAnnouncement.token;
-					this.callbacks.set(streamRecord.token, streamRecord.getP2PConnection);
+					this.callbacks.set(streamRecord.token, streamRecord.handleWebRTC);
 				}
 				status.set(streamAnnouncement.id, false);
 			} else {
@@ -492,7 +558,7 @@ export class P2PController {
 
 			streamRecord.token = streamAnnouncement.token;
 
-			this.callbacks.set(streamRecord.token, streamRecord.getP2PConnection);
+			this.callbacks.set(streamRecord.token, streamRecord.handleWebRTC);
 			streams.set(id, streamRecord);
 
 			// Create new connection for announced stream.

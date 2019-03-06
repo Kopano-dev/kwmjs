@@ -17,6 +17,7 @@
     "git-revision-webpack-plugin": "^2.5.1",
     "license-webpack-plugin": "^1.0.0",
     "simple-peer": "9.2.1",
+    "source-map-explorer": "^1.7.0",
     "ts-loader": "^4.2.0",
     "tslint": "^5.9.1",
     "tslint-loader": "^3.5.3",

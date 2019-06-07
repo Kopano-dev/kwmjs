@@ -12,6 +12,9 @@
     "LICENSE.txt",
     "NOTICES.txt"
   ],
+  "scripts": {
+    "deduplicate": "yarn-deduplicate -s fewer yarn.lock"
+  },
   "devDependencies": {
     "@types/webrtc": "^0.0.23",
     "git-revision-webpack-plugin": "^2.5.1",

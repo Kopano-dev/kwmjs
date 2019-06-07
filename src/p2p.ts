@@ -23,27 +23,27 @@ import { WebRTCBaseManager } from './webrtc';
 let datachannelSequence = 0;
 let localStreamSequence = 0;
 
-interface IP2PTypeHandshake extends IRTMTypeSubTypeEnvelope {
+export interface IP2PTypeHandshake extends IRTMTypeSubTypeEnvelope {
 	v: number;
 	ts: number;
 	data?: any;
 }
 
-interface IP2PStreamAnnouncement {
+export interface IP2PStreamAnnouncement {
 	v: number;
 	id: string;
 	kind: string;
 	token: string;
 }
 
-interface IP2PTypeAnnounceStreams extends IRTMTypeSubTypeEnvelope {
+export interface IP2PTypeAnnounceStreams extends IRTMTypeSubTypeEnvelope {
 	streams: IP2PStreamAnnouncement[];
 }
 
 /**
  * A P2PRecord represents a current or future connections p2p status.
  */
-class P2PRecord {
+export class P2PRecord {
 	public id: string = '';
 	public pc: SimplePeer;
 	public user: string = '';
@@ -72,7 +72,7 @@ class P2PRecord {
 /**
  * A StreamRecord represents a current or future p2p stream with its connections.
  */
-class StreamRecord {
+export class StreamRecord {
 	public static version: number = 1;
 
 	public id: string = '';

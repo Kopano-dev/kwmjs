@@ -33,7 +33,7 @@ export class BaseEvent {
 	public target: any;
 	public defaultPrevented: boolean = false;
 
-	constructor(target: any) {
+	public constructor(target: any) {
 		this.target = target;
 	}
 
@@ -49,7 +49,7 @@ export class KWMStateChangedEvent extends BaseEvent {
 	public connected: boolean;
 	public reconnecting: boolean;
 
-	constructor(target: any) {
+	public constructor(target: any) {
 		super(target);
 
 		this.connecting = target.connecting;
@@ -64,7 +64,7 @@ export class KWMTURNServerChangedEvent extends BaseEvent {
 	public ttl: number;
 	public iceServer: RTCIceServer;
 
-	constructor(target: any, ttl: number, iceServer: RTCIceServer) {
+	public constructor(target: any, ttl: number, iceServer: RTCIceServer) {
 		super(target);
 
 		this.ttl = ttl;
@@ -78,7 +78,7 @@ export class KWMErrorEvent extends BaseEvent {
 	public code: string;
 	public msg: string;
 
-	constructor(target: any, details: any) {
+	public constructor(target: any, details: any) {
 		super(target);
 
 		this.code = details.code;
@@ -94,7 +94,7 @@ export class WebRTCPeerEvent extends BaseEvent {
 	public record: IPeerRecord;
 	public details: any;
 
-	constructor(target: any, event: string, record: IPeerRecord, details?: any) {
+	public constructor(target: any, event: string, record: IPeerRecord, details?: any) {
 		super(target);
 		this.event = event;
 		this.record = record;
@@ -108,7 +108,7 @@ export class WebRTCStreamEvent extends WebRTCPeerEvent {
 	public stream: MediaStream;
 	public token: string;
 
-	constructor(target: any, event: string, record: IPeerRecord, stream: MediaStream, token: string = '') {
+	public constructor(target: any, event: string, record: IPeerRecord, stream: MediaStream, token: string = '') {
 		super(target, event, record);
 		this.stream = stream;
 		this.token = token;
@@ -122,7 +122,7 @@ export class WebRTCStreamTrackEvent extends WebRTCPeerEvent {
 	public stream: MediaStream;
 	public token: string;
 
-	constructor(
+	public constructor(
 		target: any, event: string, record: IPeerRecord, track: MediaStreamTrack, stream: MediaStream,
 		token: string = '') {
 		super(target, event, record);
@@ -138,7 +138,7 @@ export class WebRTCAnnounceStreamsEvent extends WebRTCPeerEvent {
 	public added: IP2PAnnouncement[];
 	public removed: IP2PAnnouncement[];
 
-	constructor(
+	public constructor(
 		target: any, event: string, record: IPeerRecord, added: IP2PAnnouncement[],
 		removed: IP2PAnnouncement[]) {
 		super(target, event, record);

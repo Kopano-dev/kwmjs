@@ -43,7 +43,7 @@ export interface IP2PTypeAnnounceStreams extends IRTMTypeSubTypeEnvelope {
 /**
  * A P2PRecord represents a current or future connections p2p status.
  */
-export class P2PRecord {
+class P2PRecord {
 	public id: string = '';
 	public pc: SimplePeer;
 	public user: string = '';
@@ -58,7 +58,7 @@ export class P2PRecord {
 
 	public streams: Map<string, StreamRecord>;
 
-	constructor(id: string, pc: SimplePeer, user: string, config: any, initiator: boolean) {
+	public constructor(id: string, pc: SimplePeer, user: string, config: any, initiator: boolean) {
 		this.id = id;
 		this.pc = pc;
 		this.user = user;
@@ -85,7 +85,7 @@ export class StreamRecord {
 
 	private controller: P2PController;
 
-	constructor(controller: P2PController, id: string, kind: string, stream?: MediaStream) {
+	public constructor(controller: P2PController, id: string, kind: string, stream?: MediaStream) {
 		this.controller = controller;
 		this.id = id;
 		this.connections = new Map<string, SimplePeer>();
@@ -198,7 +198,7 @@ export class P2PController {
 
 	private callbacks: Map<string, (record: P2PRecord, message: IRTMTypeWebRTC) => SimplePeer | undefined>;
 
-	constructor(webrtc: WebRTCBaseManager) {
+	public constructor(webrtc: WebRTCBaseManager) {
 		this.webrtc = webrtc;
 
 		this.connections = new Map<string, P2PRecord>();

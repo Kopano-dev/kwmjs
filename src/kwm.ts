@@ -85,11 +85,11 @@ export class KWMInit {
 		reconnectSpreader: 500,
 	};
 
-	public static init(options: any) {
+	public static init(options: any): void {
 		Object.assign(this.options, options);
 	}
 
-	constructor(callbacks: any = {}) {
+	public constructor(callbacks: any = {}) {
 		let url = callbacks.server || '';
 		if (url) {
 			const urlParser = document.createElement('a');
@@ -107,18 +107,18 @@ export class KWMInit {
 			options.authorizationValue = callbacks.token;
 		}
 
-		const kwm = new KWM(url, options);
+		const kwm = new KWM(url, options); // eslint-disable-line @typescript-eslint/no-use-before-define
 		kwm.webrtc.config = {
 			iceServers: callbacks.iceServers || [],
 		};
 
 		if (callbacks.success) {
-			setTimeout(() => {
+			setTimeout((): void => {
 				callbacks.success();
 			}, 0);
 		}
 		if (callbacks.error) {
-			kwm.onerror = event => {
+			kwm.onerror = (event): void => {
 				callbacks.error(event);
 			};
 		}
@@ -195,7 +195,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @param baseURI The base URI to the KWM server API.
 	 * @param options Additional options.
 	 */
-	constructor(baseURI: string = '', options?: IKWMOptions) {
+	public constructor(baseURI: string = '', options?: IKWMOptions) {
 		this.webrtc = new WebRTCManager(this);
 
 		this.baseURI = baseURI.replace(/\/$/, '');
@@ -376,12 +376,12 @@ export class KWM implements IWebRTCManagerContainer {
 				return;
 			}
 			console.info(`KWM will refresh TURN settings in ${ttl} seconds`);
-			this.turnRefresher = window.setTimeout(async () => {
+			this.turnRefresher = window.setTimeout(async (): Promise<void> => {
 				if (!this.connected || this.closing) {
 					return;
 				}
 				let turnResult: IRTMTURNResponse;
-				let authorizationHeader: string = '';
+				let authorizationHeader = '';
 				if (this.options.authorizationType && this.options.authorizationValue) {
 					authorizationHeader = this.options.authorizationType + ' ' + this.options.authorizationValue;
 				}
@@ -402,9 +402,9 @@ export class KWM implements IWebRTCManagerContainer {
 		this.connecting = true;
 		this.dispatchStateChangedEvent();
 
-		return new Promise<void>(async (resolve, reject) => {
+		return new Promise<void>(async (resolve, reject): Promise<void> => {
 			let connectResult: IRTMConnectResponse;
-			let authorizationHeader: string = '';
+			let authorizationHeader = '';
 			if (this.options.authorizationType && this.options.authorizationValue) {
 				authorizationHeader = this.options.authorizationType + ' ' + this.options.authorizationValue;
 			}
@@ -450,14 +450,14 @@ export class KWM implements IWebRTCManagerContainer {
 				url = this.baseURI + url;
 			}
 			const start = new Date().getTime();
-			this.createWebSocket(url, this.reconnecting ? reconnector : undefined).then(() => {
+			this.createWebSocket(url, this.reconnecting ? reconnector : undefined).then((): void => {
 				this.reconnectAttempts = 0;
 				this.latency = (new Date().getTime()) - start;
 				latencyMeter.push(this.latency);
 				console.debug('connection established', this.reconnectAttempts, this.latency);
 				heartbeater(true);
 				resolve();
-			}, err => {
+			}, (err): void => {
 				console.warn('connection failed', err, !!this.reconnecting);
 				if (this.reconnecting) {
 					reconnector();
@@ -787,7 +787,7 @@ export class KWM implements IWebRTCManagerContainer {
 		const reply = message as IRTMTypeEnvelopeReply;
 		if (reply.type === 'pong') {
 			// Special case for pongs, which just reply back everything.
-			reply.reply_to = reply.id;
+			reply.reply_to = reply.id; // eslint-disable-line @typescript-eslint/camelcase
 		}
 		if (reply.reply_to) {
 			const replyTimeout = this.replyHandlers.get(reply.reply_to);

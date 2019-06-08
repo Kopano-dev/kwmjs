@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-env node */
+
 const fs = require('fs');
 const path = require('path');
 const BannerPlugin = require('webpack').BannerPlugin;
@@ -39,7 +42,7 @@ module.exports = {
 		rules: [
 			{
 				test: /\.tsx?$/,
-				loader: 'tslint-loader',
+				loader: 'eslint-loader',
 				exclude: /node_modules/,
 				enforce: 'pre',
 				options: {

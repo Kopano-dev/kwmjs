@@ -38,18 +38,18 @@ kwm-dev: vendor ; $(info building and watching $@ ...) @
 
 .PHONY: docs
 docs: vendor ; $(info building $@ ...) @
-	@$(YARN) typedoc -- --out ./docs --hideGenerator --excludePrivate --name 'Kopano Webmeetings Javascript Client Library $(VERSION)' --mode file --theme minimal --target ES5 ./src
+	@$(YARN) typedoc --out ./docs --hideGenerator --excludePrivate --name 'Kopano Webmeetings Javascript Client Library $(VERSION)' --mode file --theme minimal --target ES5 ./src
 
 # Helpers
 
 .PHONY: lint
 lint: vendor ; $(info running linters ...) @
-	@$(YARN) tslint -p .
+	@$(YARN) eslint . --ext .js,.ts --cache && echo "eslint: no lint errors"
 
 .PHONY: lint-checkstyle
 lint-checkstyle: vendor ; $(info running linters checkstyle ...) @
 	@mkdir -p ./test
-	@$(YARN) tslint -t checkstyle -p . -o ./test/tests.tslint.xml --force
+	@$(YARN) eslint -f checkstyle --ext .js,.ts -o ./test/tests.eslint.xml . || true
 
 # Yarn
 

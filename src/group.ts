@@ -20,7 +20,7 @@ export class GroupController {
 
 	private webrtc: WebRTCManager;
 
-	constructor(webrtc: WebRTCManager, id: string, record: PeerRecord) {
+	public constructor(webrtc: WebRTCManager, id: string, record: PeerRecord) {
 		this.webrtc = webrtc;
 		this.id = id;
 		this.record = record;
@@ -29,7 +29,7 @@ export class GroupController {
 
 	public handleWebRTCMessage(message: IRTMTypeWebRTC): void {
 		switch (message.subtype) {
-			case 'webrtc_channel':
+			case 'webrtc_channel': {
 				if (this.channel && message.channel !== this.channel) {
 					console.warn('invalid webrtc group channel', this.channel, message.channel);
 					return;
@@ -46,6 +46,7 @@ export class GroupController {
 
 				this.updateMembers(members);
 				break;
+			}
 
 			default:
 				console.warn('unknown webrtc group mesage', message.subtype);

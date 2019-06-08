@@ -14,7 +14,7 @@ pipeline {
 		stage('Lint') {
 			steps {
 				sh 'make lint-checkstyle'
-				checkstyle pattern: 'test/tests.tslint.xml', canComputeNew: false, failedTotalAll: '5', unstableTotalAll: '50'
+				checkstyle pattern: 'test/tests.eslint.xml', canComputeNew: false, failedTotalAll: '5', unstableTotalAll: '50'
 			}
 		}
 		stage('Build') {
@@ -37,9 +37,9 @@ pipeline {
 			}
 		}
 	}
-    post {
-        always {
-            cleanWs()
-        }
-    }
+	post {
+		always {
+			cleanWs()
+		}
+	}
 }

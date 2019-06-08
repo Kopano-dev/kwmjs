@@ -8,4 +8,4 @@
 
 'use strict';
 
-declare var __VERSION__: string;
+declare const __VERSION__: string;

@@ -109,7 +109,7 @@ export class RTMDataError {
 	public code: string;
 	public msg: string = '';
 
-	constructor(data: IRTMDataError) {
+	public constructor(data: IRTMDataError) {
 		this.code = data.code;
 		this.msg = data.msg;
 	}

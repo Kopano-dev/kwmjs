@@ -137,7 +137,7 @@ export class WebRTCBaseManager {
 	 *
 	 * @param container Reference to a IWebRTCManagerContainer instance.
 	 */
-	constructor(kwm: IWebRTCManagerContainer) {
+	public constructor(kwm: IWebRTCManagerContainer) {
 		this.kwm = kwm;
 		this.p2p = new P2PController(this);
 		this.peers = new Map<string, PeerRecord>();
@@ -207,7 +207,7 @@ export class WebRTCBaseManager {
 			trickle: true,
 			...options,
 		});
-		pc.on('error', err => {
+		pc.on('error', (err): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -219,7 +219,7 @@ export class WebRTCBaseManager {
 				return;
 			}
 			// Auto recovery / create new pc in record and start signaling again.
-			setTimeout(() => {
+			setTimeout((): void => {
 				if (record.pc !== undefined && pc !== record.pc) {
 					return;
 				}
@@ -234,7 +234,7 @@ export class WebRTCBaseManager {
 				console.debug('created pc', newpc._id, newpc);
 			}, 500);
 		});
-		pc.on('signal', data => {
+		pc.on('signal', (data): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -251,14 +251,14 @@ export class WebRTCBaseManager {
 				subtype: 'webrtc_signal',
 				target: record.user,
 				type: 'webrtc',
-				v: WebRTCManager.version,
+				v: WebRTCManager.version, // eslint-disable-line @typescript-eslint/no-use-before-define
 			};
 			// console.debug('>>> send signal', payload);
-			this.kwm.sendWebSocketPayload(payload, undefined, record).catch(err => {
+			this.kwm.sendWebSocketPayload(payload, undefined, record).catch((err): void => {
 				console.error('peerconnection signal websocket send failed', pc._id, err);
 			});
 		});
-		pc.on('connect', () => {
+		pc.on('connect', (): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -267,7 +267,7 @@ export class WebRTCBaseManager {
 			this.p2p.handleConnect(pc);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.connect', record, pc));
 		});
-		pc.on('close', () => {
+		pc.on('close', (): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -277,7 +277,7 @@ export class WebRTCBaseManager {
 			this.p2p.handleClose(pc);
 			record.pc = undefined;
 		});
-		pc.on('track', (track, mediaStream) => {
+		pc.on('track', (track, mediaStream): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -285,7 +285,7 @@ export class WebRTCBaseManager {
 			console.debug('peerconnection track', pc._id, track, mediaStream);
 			this.dispatchEvent(new WebRTCStreamTrackEvent(this, 'pc.track', record, track, mediaStream));
 		});
-		pc.on('stream', mediaStream => {
+		pc.on('stream', (mediaStream): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -293,14 +293,14 @@ export class WebRTCBaseManager {
 			// console.debug('peerconnection stream', pc._id, mediaStream);
 			this.dispatchEvent(new WebRTCStreamEvent(this, 'pc.stream', record, mediaStream));
 		});
-		pc.on('data', data => {
+		pc.on('data', (data): void => {
 			if (pc !== record.pc) {
 				return;
 			}
 
 			this.p2p.handleData(pc, data);
 		});
-		pc.on('iceStateChange', state => {
+		pc.on('iceStateChange', (state): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -308,7 +308,7 @@ export class WebRTCBaseManager {
 			console.debug('iceStateChange', pc._id, state);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.iceStateChange', record, state));
 		});
-		pc.on('signalingStateChange', state => {
+		pc.on('signalingStateChange', (state): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -574,7 +574,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 		}
 
 		// Find obsolete peers which we have but no longer in group.
-		peers.forEach(record => {
+		peers.forEach((record): void => {
 			if (record.cid !== '') {
 				// Normal peers only for mesh.
 				return;
@@ -589,7 +589,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 		console.log('webrtc doMesh triggers', added, removed, all);
 
-		const promises: Array<Promise<string>> = [];
+		const promises: Promise<string>[] = [];
 
 		// Remove first.
 		for (const user of removed) {
@@ -887,7 +887,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 							&& record.group === message.group
 							&& record.group === this.group.id
 							&& message.data.accept
-							) {
+						) {
 							console.debug('webrtc hash exchange peer record group hash', record.group);
 							record.hash = message.hash;
 						} else {

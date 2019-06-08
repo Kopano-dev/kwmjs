@@ -38,7 +38,7 @@ export class Plugins {
 	 *
 	 * @param plugin Factory class of the plugin to register.
 	 */
-	public static register(plugin: IPlugin<any>) {
+	public static register(plugin: IPlugin<any>): void {
 		this.registry.set(plugin.getName(), plugin);
 	}
 

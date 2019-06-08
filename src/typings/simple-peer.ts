@@ -15,7 +15,7 @@ declare module 'simple-peer' {
 		public connected: boolean;
 		public initiator: boolean;
 
-		constructor(options: any);
+		public constructor(options: any);
 
 		public on(name: string, handler: (event: any, ...opts: any[]) => void): void;
 		public emit(name: string, event: any): void;
@@ -33,6 +33,6 @@ declare module 'simple-peer' {
 		public _needsNegotiation(): void;
 	}
 
-	namespace Peer {}
+	namespace Peer {} // eslint-disable-line @typescript-eslint/no-namespace
 	export = Peer;
 }

@@ -14,7 +14,7 @@ pipeline {
 		stage('Lint') {
 			steps {
 				sh 'make lint-checkstyle'
-				checkstyle pattern: 'test/tests.eslint.xml', canComputeNew: false, failedTotalAll: '5', unstableTotalAll: '50'
+				checkstyle pattern: 'test/tests.eslint.xml', canComputeNew: false, unstableTotalHigh: '0', thresholdLimit: 'high'
 			}
 		}
 		stage('Build') {

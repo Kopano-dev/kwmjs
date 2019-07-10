@@ -3,6 +3,7 @@ PACKAGE_NAME = kwmjs
 # Tools
 
 YARN   ?= yarn
+CHGLOG ?= git-chglog
 
 # Variables
 TARGET  ?= ES5
@@ -64,6 +65,10 @@ vendor: .yarninstall
 dist: ; $(info building dist tarball ...)
 	@mkdir -p "dist/"
 	$(YARN) pack --filename="dist/${PACKAGE_NAME}-${VERSION}.tgz"
+
+.PHONY: changelog
+changelog: ; $(info updating changelog ...)
+	$(CHGLOG) --output CHANGELOG.md
 
 .PHONY: clean
 clean: ; $(info cleaning ...) @

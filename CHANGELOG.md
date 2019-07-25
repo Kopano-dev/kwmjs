@@ -4,6 +4,11 @@
 
 
 
+## v0.19.0 (2019-07-25)
+
+- Update simple-peer to support unified-plan
+
+
 ## v0.18.0 (2019-06-13)
 
 - v0.18.0

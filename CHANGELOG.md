@@ -4,6 +4,12 @@
 
 
 
+## v0.20.0 (2019-08-21)
+
+- Update build dependencies
+- Update simple-peer to 9.5.0
+
+
 ## v0.19.0 (2019-07-25)
 
 - Update simple-peer to support unified-plan

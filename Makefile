@@ -6,6 +6,8 @@ YARN   ?= yarn
 CHGLOG ?= git-chglog
 
 # Variables
+
+ARGS    ?=
 TARGET  ?= ES5
 DATE    ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 VERSION ?= $(shell git describe --tags --always --dirty --match=v* 2>/dev/null | sed 's/^v//' || \
@@ -68,7 +70,7 @@ dist: ; $(info building dist tarball ...)
 
 .PHONY: changelog
 changelog: ; $(info updating changelog ...)
-	$(CHGLOG) --output CHANGELOG.md
+	$(CHGLOG) --output CHANGELOG.md $(ARGS)
 
 .PHONY: clean
 clean: ; $(info cleaning ...) @

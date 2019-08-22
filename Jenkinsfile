@@ -28,9 +28,6 @@ pipeline {
 			}
 		}
 		stage('Dist') {
-			when {
-				branch 'master'
-			}
 			steps {
 				sh 'make dist'
 				archiveArtifacts artifacts: 'dist/*.tgz', fingerprint: true

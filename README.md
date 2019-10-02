@@ -3,10 +3,19 @@
 This projects implements a Javascript Client Library to interact with a Kopano
 Webmeetings server.
 
-## Install
+## Technologies
+
+- Typescript
+- WebRTC
+- Webpack
+
+## Installation
+
+Kopano publishes releases of kwmjs to the community download server. Those can
+easily be added to projects with Yarn or NPM.
 
 ```
-yarn add https://stash.kopano.io/scm/kwm/kwmjs.git
+yarn add https://download.kopano.io/community/kapp:/kwmjs-latest.tgz
 ```
 
 ## API and docs
@@ -52,14 +61,19 @@ kwm.connect('userB').then(() => {
 });
 ```
 
-### Debugging
+## Build dependencies
+
+Builtin kwmjs, requires the following dependencies:
+
+* yarn
+
+## Debugging
 
 Type in the following in the browser console to enable WebRTC debugging.
 
 ```
 localStorage.debug = 'simple-peer'
 ```
-
 
 ## License
 

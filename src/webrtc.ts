@@ -207,18 +207,8 @@ export class WebRTCBaseManager {
 			trickle: true,
 			...options,
 		});
-		pc.on('error', (err): void => {
-			if (pc !== record.pc) {
-				return;
-			}
-
-			console.debug('peerconnection error', pc._id, err);
-			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.error', record, err));
-
-			if (!record.reconnect) {
-				return;
-			}
-			// Auto recovery / create new pc in record and start signaling again.
+		const recover = (initiator: boolean, record: PeerRecord, pc: SimplePeer | undefined, delay: number = 500): void => {
+			// To recover from error, create new pc in record and start signaling again.
 			setTimeout((): void => {
 				if (record.pc !== undefined && pc !== record.pc) {
 					return;
@@ -242,7 +232,21 @@ export class WebRTCBaseManager {
 						renegotiate: true,
 					});
 				}
-			}, 500);
+			}, delay);
+		}
+		pc.on('error', (err): void => {
+			if (pc !== record.pc) {
+				return;
+			}
+
+			console.debug('peerconnection error', pc._id, err);
+			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.error', record, err));
+
+			if (!record.reconnect) {
+				return;
+			}
+			// Auto recovery.
+			recover(initiator, record, record.pc, 500);
 		});
 		pc.on('signal', (data): void => {
 			if (pc !== record.pc) {
@@ -266,6 +270,8 @@ export class WebRTCBaseManager {
 			// console.debug('>>> send signal', payload);
 			this.kwm.sendWebSocketPayload(payload, undefined, record).catch((err): void => {
 				console.error('peerconnection signal websocket send failed', pc._id, err);
+				// Auto recovery.
+				recover(initiator, record, record.pc, 500);
 			});
 		});
 		pc.on('connect', (): void => {

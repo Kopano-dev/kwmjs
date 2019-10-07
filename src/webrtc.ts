@@ -228,10 +228,20 @@ export class WebRTCBaseManager {
 				}
 
 				console.debug('peerconnection auto reconnect after error');
-				record.pc = undefined;
+				if (record.pc) {
+					record.pc.destroy();
+				}
 				// NOTE(longsleep): Possible race when both sides errored.
 				const newpc = this.getPeerConnection(initiator, record, undefined);
-				console.debug('created pc', newpc._id, newpc);
+				console.debug('created pc', newpc._id, newpc, initiator);
+				if (!initiator) {
+					// Manually trigger negotiation from the peer if this
+					// peer is not the initiator. This starts WebRTC with
+					// the other side.
+					newpc.emit('signal', {
+						renegotiate: true,
+					});
+				}
 			}, 500);
 		});
 		pc.on('signal', (data): void => {

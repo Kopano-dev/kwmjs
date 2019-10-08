@@ -225,11 +225,12 @@ export class WebRTCBaseManager {
 				const newpc = this.getPeerConnection(initiator, record, undefined);
 				console.debug('created pc', newpc._id, newpc, initiator);
 				if (!initiator) {
-					// Manually trigger negotiation from the peer if this
+					// Manually trigger noop negotiation from the peer if this
 					// peer is not the initiator. This starts WebRTC with
 					// the other side.
 					newpc.emit('signal', {
 						renegotiate: true,
+						noop: true,
 					});
 				}
 			}, delay);
@@ -935,6 +936,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 						// the other side.
 						pc1.emit('signal', {
 							renegotiate: true,
+							noop: true,
 						});
 					}
 
@@ -1026,11 +1028,23 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 				if (!record.pc) {
 					console.log('start webrtc, received signal', message.pcid);
-					const pc2 = this.getPeerConnection(this.computeInitiator(record), record, message.pcid);
-					console.debug('created pc', pc2._id, pc2);
+					const initiator = this.computeInitiator(record);
+					const pc2 = this.getPeerConnection(initiator, record, message.pcid);
+					console.debug('created pc', pc2._id, pc2, initiator);
 					if (!record.pc) {
 						throw new Error('no peer connection in record');
 					}
+					if (initiator && message.data.renegotiate) {
+						// Ignore renegotiate requests when just created the pc. This avoid double offer when the
+						// connection is slow.
+						console.debug('skipping renegotiate request for new initiator pc', pc2._id, pc2);
+						return;
+					}
+				}
+
+				if (message.data.noop) {
+					console.debug('skipping noop signal', record.pc._id, record.pc, record.initiator);
+					return;
 				}
 
 				if (message.data && message.data.sdp && this.options.remoteSDPTransform) {

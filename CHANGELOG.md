@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+
+
+## v0.21.0 (2019-10-10)
+
 - Avoid offer/answer ping pong on call start
 - Recreate pc when signaling sending failed
 - Trigger renegotiate on pc error even when not initiator

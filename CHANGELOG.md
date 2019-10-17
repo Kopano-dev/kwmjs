@@ -4,6 +4,11 @@
 
 
 
+## v1.0.0 (2019-10-17)
+
+- Bump version to 1.0.0
+
+
 ## v0.21.0 (2019-10-10)
 
 - Avoid offer/answer ping pong on call start

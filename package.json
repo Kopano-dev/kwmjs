@@ -3,7 +3,7 @@
   "description": "Kopano Webmeetings Javascript client library",
   "author": "Kopano b.v. <info@kopano.com>",
   "license": "MIT",
-  "version": "0.18.0",
+  "version": "1.0.0",
   "main": "umd/kwm.js",
   "types": "umd/src/index.d.ts",
   "files": [

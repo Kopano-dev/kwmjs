@@ -317,13 +317,13 @@ export class WebRTCBaseManager {
 
 			this.p2p.handleData(pc, data);
 		});
-		pc.on('iceStateChange', (state): void => {
+		pc.on('iceStateChange', (connectionState, gatheringState): void => {
 			if (pc !== record.pc) {
 				return;
 			}
 
-			console.debug('iceStateChange', pc._id, state);
-			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.iceStateChange', record, state));
+			console.debug('iceStateChange', pc._id, connectionState, gatheringState);
+			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.iceStateChange', record, connectionState));
 		});
 		pc.on('signalingStateChange', (state): void => {
 			if (pc !== record.pc) {

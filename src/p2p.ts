@@ -157,6 +157,12 @@ export class StreamRecord {
 					// Remote SDP transform support.
 					message.data.sdp = this.options.remoteSDPTransform(message.data.sdp, this.options.kind);
 				}
+
+				if (message.data.noop) {
+					console.debug('p2p skipping noop signal', pc._id, pc, record.initiator);
+					return;
+				}
+
 				pc.signal(message.data);
 				break;
 		}
@@ -412,6 +418,7 @@ export class P2PController {
 		const pc = new SimplePeer({
 			config: record.config,
 			initiator: record.initiator,
+			objectMode: true,
 			sdpTransform: (sdp: string): string => {
 				if (localSDPTransform) {
 					return localSDPTransform(sdp, kind);
@@ -437,7 +444,7 @@ export class P2PController {
 				type: 'webrtc',
 				v: WebRTCBaseManager.version,
 			};
-			// console.debug('>>> send p2p signal'te, payload);
+			// console.debug('>>> p2p webrtc signal', payload);
 			this.sendDatachannelPayload(payload, 0, record.pc);
 		});
 		pc.on('connect', (): void => {
@@ -584,6 +591,7 @@ export class P2PController {
 					// that we are ready to start webrtc.
 					pc.emit('signal', {
 						renegotiate: true,
+						noop: true,
 					});
 				}
 			}
@@ -654,7 +662,7 @@ export class P2PController {
 	}
 
 	private handleWebRTCMessage(record: P2PRecord, message: IRTMTypeWebRTC): void {
-		// console.debug('<<< webrtc', message);
+		// console.debug('<<< p2p webrtc signal', message);
 
 		if (!message.v || message.v < WebRTCBaseManager.version) {
 			console.debug('webrtc ignoring p2p message with outdated version', message.v, message);

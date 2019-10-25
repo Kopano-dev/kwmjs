@@ -168,7 +168,7 @@ export class StreamRecord {
 	 * Destroys the accoicated stream reference and terminates all its connections.
 	 */
 	public destroy(): void {
-		this.connections.forEach((pc: SimplePeer) => {
+		this.connections.forEach((pc: SimplePeer): void => {
 			pc.destroy();
 		});
 		this.connections.clear();
@@ -246,7 +246,7 @@ export class P2PController {
 		if (old && record && stream) {
 			// 1. check if stream is replaced, if so update existing connections
 			//    with replaceStream.
-			record.connections.forEach((pc: SimplePeer, key: string) => {
+			record.connections.forEach((pc: SimplePeer, key: string): void => {
 				// console.debug('p2p update stream', pc, key);
 				// TODO(longsleep): Use replace track for certain kinds.
 				if (old.stream) {
@@ -349,7 +349,7 @@ export class P2PController {
 			record.connected = false;
 			record.handshake = undefined;
 			this.connections.delete(id);
-			record.streams.forEach(streamRecord => {
+			record.streams.forEach((streamRecord): void => {
 				streamRecord.destroy();
 			});
 			record.streams.clear();
@@ -412,7 +412,7 @@ export class P2PController {
 		const pc = new SimplePeer({
 			config: record.config,
 			initiator: record.initiator,
-			sdpTransform: (sdp: any) => {
+			sdpTransform: (sdp: string): string => {
 				if (localSDPTransform) {
 					return localSDPTransform(sdp, kind);
 				}
@@ -422,11 +422,11 @@ export class P2PController {
 			trickle: true,
 			...options,
 		});
-		pc.on('error', err => {
+		pc.on('error', (err): void => {
 			console.warn('p2p connection error', pc._id, err);
 			this.webrtc.dispatchEvent(new WebRTCPeerEvent(this.webrtc, 'pc.error', record, err));
 		});
-		pc.on('signal', data => {
+		pc.on('signal', (data): void => {
 			// console.debug('p2p connection signal', pc._id, data);
 			const payload = {
 				data,
@@ -440,18 +440,18 @@ export class P2PController {
 			// console.debug('>>> send p2p signal'te, payload);
 			this.sendDatachannelPayload(payload, 0, record.pc);
 		});
-		pc.on('connect', () => {
+		pc.on('connect', (): void => {
 			console.debug('p2p connection connect', pc._id);
 			this.webrtc.dispatchEvent(new WebRTCPeerEvent(this.webrtc, 'pc.connect', record, pc));
 		});
-		pc.on('close', () => {
+		pc.on('close', (): void => {
 			console.debug('p2p connection close', pc._id);
 			this.webrtc.dispatchEvent(new WebRTCPeerEvent(this.webrtc, 'pc.closed', record, pc));
 		});
-		pc.on('iceStateChange', state => {
-			console.debug('p2p iceStateChange', pc._id, state);
+		pc.on('iceStateChange', (connectionState, gatheringState): void => {
+			console.debug('p2p iceStateChange', pc._id, connectionState, gatheringState);
 		});
-		pc.on('signalingStateChange', state => {
+		pc.on('signalingStateChange', (state): void => {
 			console.debug('p2p signalingStateChange', pc._id, state);
 		});
 
@@ -465,7 +465,7 @@ export class P2PController {
 
 	private announceStreams(record?: P2PRecord, force: boolean = false): void {
 		const streams = Array<IP2PStreamAnnouncement>();
-		this.localStreams.forEach((streamRecord: StreamRecord) => {
+		this.localStreams.forEach((streamRecord: StreamRecord): void => {
 			streams.push({
 				id: streamRecord.id,
 				kind: streamRecord.kind,
@@ -491,7 +491,7 @@ export class P2PController {
 			this.sendDatachannelPayload(payload, 0, record.pc);
 		} else {
 			// Send to all if no record given.
-			this.connections.forEach((p2pRecord: P2PRecord) => {
+			this.connections.forEach((p2pRecord: P2PRecord): void => {
 				if (p2pRecord.ready && p2pRecord.pc) {
 					this.sendDatachannelPayload(payload, 0, p2pRecord.pc);
 				}
@@ -506,7 +506,7 @@ export class P2PController {
 		const added: IP2PStreamAnnouncement[] = [];
 		const streams = record.streams;
 
-		message.streams.forEach(streamAnnouncement => {
+		message.streams.forEach((streamAnnouncement): void => {
 			const streamRecord = streams.get(streamAnnouncement.id);
 			if (streamRecord) {
 				// Already got that.
@@ -527,7 +527,7 @@ export class P2PController {
 		});
 
 		const removed: StreamRecord[] = [];
-		streams.forEach(streamRecord => {
+		streams.forEach((streamRecord): void => {
 			if (!status.has(streamRecord.id)) {
 				streams.delete(streamRecord.id);
 				removed.push(streamRecord);
@@ -544,7 +544,7 @@ export class P2PController {
 			new WebRTCAnnounceStreamsEvent(this.webrtc, 'p2p.announce_streams', record, added, removed));
 		console.debug('p2p streams have changed', removed.length, added.length);
 
-		added.forEach(streamAnnouncement => {
+		added.forEach((streamAnnouncement): void => {
 			const id = streamAnnouncement.id;
 			const streamRecord = new StreamRecord(
 				this,
@@ -572,7 +572,7 @@ export class P2PController {
 					...streamRecord.options,
 					source: streamAnnouncement.token, // NOTE(longsleep): Use source to pass along token.
 				});
-				pc.on('track', (track, mediaStream) => {
+				pc.on('track', (track, mediaStream): void => {
 					this.webrtc.dispatchEvent(
 						new WebRTCStreamTrackEvent(
 							this.webrtc, 'pc.track', record, track, mediaStream, streamRecord.token),
@@ -691,7 +691,7 @@ export class P2PController {
 		payload: IRTMTypeEnvelope,
 		replyTimeout: number = 0,
 		pc: SimplePeer): Promise<IRTMTypeEnvelope> {
-		return new Promise<IRTMTypeEnvelope>((resolve, reject) => {
+		return new Promise<IRTMTypeEnvelope>((resolve, reject): void => {
 			if (pc.destroyed) {
 				reject(new Error('connection_is_destroyed'));
 			}

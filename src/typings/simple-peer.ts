@@ -14,19 +14,22 @@ declare module 'simple-peer' {
 		public destroyed: boolean;
 		public connected: boolean;
 		public initiator: boolean;
+		public _pc: RTCPeerConnection;
 
 		public constructor(options: any);
 
 		public on(name: string, handler: (event: any, ...opts: any[]) => void): void;
 		public emit(name: string, event: any): void;
 		public signal(jsep: any): void;
-		public destroy(): void;
+		public destroy(err?: any): void;
 
 		public removeStream(stream: MediaStream): void;
 		public addStream(stream: MediaStream): void;
 
 		public removeTrack(track: MediaStreamTrack, stream: MediaStream): void;
 		public addTrack(track: MediaStreamTrack, stream: MediaStream): void;
+
+		public addTransceiver(trackOrKind: MediaStreamTrack | string, init?: RTCRtpTransceiverInit): void;
 
 		public send(chunk: ArrayBufferView | ArrayBuffer | string | Blob): void;
 

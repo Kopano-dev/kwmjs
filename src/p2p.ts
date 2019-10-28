@@ -49,7 +49,7 @@ class P2PRecord {
 	public user: string = '';
 	public config?: any;
 	public initiator: boolean = false;
-
+	public reconnect: boolean = true;
 	public connected: boolean = false;
 	public ready: boolean = false;
 
@@ -70,6 +70,14 @@ class P2PRecord {
 }
 
 /**
+ * A PCRecord represents a local peer connection together with a remote pc id.
+ */
+class PCRecord {
+	public pc?: SimplePeer;
+	public rpcid?: string;
+}
+
+/**
  * A StreamRecord represents a current or future p2p stream with its connections.
  */
 export class StreamRecord {
@@ -80,7 +88,7 @@ export class StreamRecord {
 	public stream?: MediaStream;
 	public sequence: number = 0;
 	public token: string = '';
-	public connections: Map<string, SimplePeer>;
+	public connections: Map<string, PCRecord>;
 	public options?: any;
 
 	private controller: P2PController;
@@ -88,7 +96,7 @@ export class StreamRecord {
 	public constructor(controller: P2PController, id: string, kind: string, stream?: MediaStream) {
 		this.controller = controller;
 		this.id = id;
-		this.connections = new Map<string, SimplePeer>();
+		this.connections = new Map<string, PCRecord>();
 
 		// Check for supported kinds.
 		switch (kind) {
@@ -98,14 +106,10 @@ export class StreamRecord {
 					...controller.webrtc.options,
 					answerConstraints: {
 						...controller.webrtc.options.answerConstraints,
-						offerToReceiveAudio: false,
-						offerToReceiveVideo: !stream,
 					},
 					kind,
 					offerConstraints: {
 						...controller.webrtc.options.offerConstraints,
-						offerToReceiveAudio: false,
-						offerToReceiveVideo: !stream,
 					},
 				};
 				break;
@@ -130,52 +134,95 @@ export class StreamRecord {
 	 */
 	public handleWebRTC = (record: P2PRecord, message: IRTMTypeWebRTC): (SimplePeer | undefined) => {
 		// console.debug('p2p stream record callback', record, message);
-		if (message.subtype !== 'webrtc_signal') {
-			// Do nothing for other messages.
-			return;
-		}
-
-		let pc = this.connections.get(record.id);
-		if (!pc) {
-			// console.debug('p2p start webrtc, callback triggered', record.id, this.connections);
-			const streams: MediaStream[] = [];
-			if (this.stream) {
-				streams.push(this.stream);
-			}
-			pc = this.controller.getPeerConnection(record, {
-				...this.options,
-				source: this.token, // NOTE(longsleep): Use source to pass along token.
-				streams,
-			});
-			this.connections.set(record.id, pc);
-		}
+		let binder: PCRecord | undefined;
 
 		// Handle imcoming messages.
 		switch (message.subtype) {
 			case 'webrtc_signal':
+				if (!message.data) {
+					console.warn('p2p webrtc signal data empty');
+					break;
+				}
+
+				binder = this.connections.get(record.id) as PCRecord;
+				if (!binder) {
+					binder = new PCRecord();
+				}
+
+				if (message.pcid !== binder.rpcid) {
+					if (binder.rpcid === undefined) {
+						if (binder.pc && message.pcid !== undefined) {
+							// Not bound yet, accept and bind incoming id.
+							binder.rpcid = message.pcid;
+							console.log('bound p2p webrtc, received signal', message.pcid, binder.pc._id);
+						}
+					} else {
+						// Existing connection but other remote pcid. What now?
+						console.info('p2p webrtc signal with new pcid', binder.rpcid, message.pcid);
+						if (binder.pc) {
+							// Kill off existing pc cleanly to start fresh on both sides.
+							binder.pc.destroy();
+							binder.pc = undefined;
+						}
+					}
+				}
+
+				if (!binder.pc) {
+					console.debug('p2p start webrtc, callback triggered', message.pcid);
+					const streams: MediaStream[] = [];
+					if (this.stream) {
+						streams.push(this.stream);
+					}
+					const pc2 = this.controller.getPeerConnection(record, binder, {
+						...this.options,
+						source: this.token, // NOTE(longsleep): Use source to pass along token.
+						streams,
+					}, (pc: SimplePeer): void => {
+						console.debug('created p2p pc', pc._id, pc, record.initiator);
+						if (binder) {
+							binder.rpcid = message.pcid;
+							this.connections.set(record.id, binder);
+						}
+					});
+					if (!binder.pc) {
+						throw new Error('no binder for pc');
+					}
+
+					if (record.initiator && message.data.renegotiate) {
+						// Ignore renegotiate requests when just created the pc. This avoid double offer when the
+						// connection is slow.
+						console.debug('p2p skipping renegotiate request for new initiator pc', pc2._id, pc2);
+						break;
+					}
+				}
+
+				if (message.data.noop) {
+					console.debug('p2p skipping noop signal', binder.pc._id, binder.pc, record.initiator);
+					break;
+				}
+
 				if (message.data && message.data.sdp && this.options.remoteSDPTransform) {
 					// Remote SDP transform support.
 					message.data.sdp = this.options.remoteSDPTransform(message.data.sdp, this.options.kind);
 				}
+				binder.pc.signal(message.data);
 
-				if (message.data.noop) {
-					console.debug('p2p skipping noop signal', pc._id, pc, record.initiator);
-					return;
-				}
-
-				pc.signal(message.data);
 				break;
+
 		}
 
-		return pc;
+		return binder ? binder.pc : undefined;
 	}
 
 	/**
 	 * Destroys the accoicated stream reference and terminates all its connections.
 	 */
 	public destroy(): void {
-		this.connections.forEach((pc: SimplePeer): void => {
-			pc.destroy();
+		this.connections.forEach((binder: PCRecord): void => {
+			if (binder.pc) {
+				binder.pc.destroy();
+				binder.pc = undefined;
+			}
 		});
 		this.connections.clear();
 		this.stream = undefined;
@@ -252,13 +299,15 @@ export class P2PController {
 		if (old && record && stream) {
 			// 1. check if stream is replaced, if so update existing connections
 			//    with replaceStream.
-			record.connections.forEach((pc: SimplePeer, key: string): void => {
+			record.connections.forEach((binder: PCRecord, key: string): void => {
 				// console.debug('p2p update stream', pc, key);
 				// TODO(longsleep): Use replace track for certain kinds.
-				if (old.stream) {
-					pc.removeStream(old.stream);
+				if (binder.pc) {
+					if (old.stream) {
+						binder.pc.removeStream(old.stream);
+					}
+					binder.pc.addStream(stream);
 				}
-				pc.addStream(stream);
 			});
 			// Done, replaced all.
 			return;
@@ -409,10 +458,12 @@ export class P2PController {
 	 * connections signals are bound to the associated manager and send via data channel to
 	 * the peer target provided in the record.
 	 *
-	 * @param record Record to use as peer target.
+	 * @param record P2PRecord to use as peer target.
+	 * @param binder PCRecord which binds peer connections with remote id.
 	 * @param opts RTCPeerConnection options as passed along to [[SimplePeer]].
+	 * @param cb Callback function.
 	 */
-	public getPeerConnection(record: P2PRecord, opts?: any): SimplePeer {
+	public getPeerConnection(record: P2PRecord, binder: PCRecord, opts?: any, cb?: (pc: SimplePeer) => void): SimplePeer {
 		const { streams, localSDPTransform, remoteSDPTransform, source, kind, ...options } = opts;
 
 		const pc = new SimplePeer({
@@ -425,15 +476,55 @@ export class P2PController {
 				}
 				return sdp;
 			},
-			streams,
 			trickle: true,
 			...options,
 		});
+		const recover = (record: P2PRecord, pc: SimplePeer, delay: number = 500): void => {
+			// To recover from error, create new pc in record and start signaling again.
+			setTimeout((): void => {
+				if (binder.pc !== undefined && pc !== binder.pc) {
+					return;
+				}
+				if (!record.reconnect) {
+					return;
+				}
+
+				console.debug('p2p peerconnection auto recover after error');
+				pc.destroy();
+
+				const newpc = this.getPeerConnection(record, binder, opts, cb);
+				binder.rpcid = undefined;
+				console.debug('created p2p pc', newpc._id, newpc, record.initiator);
+				if (!record.initiator) {
+					// Manually trigger noop negotiation from the peer if this
+					// peer is not the initiator. This starts WebRTC with
+					// the other side.
+					newpc.emit('signal', {
+						renegotiate: true,
+						noop: true,
+					});
+				}
+			}, delay);
+		}
 		pc.on('error', (err): void => {
+			if (pc !== binder.pc) {
+				return;
+			}
+
 			console.warn('p2p connection error', pc._id, err);
 			this.webrtc.dispatchEvent(new WebRTCPeerEvent(this.webrtc, 'pc.error', record, err));
+
+			if (!record.reconnect) {
+				return;
+			}
+			// Clear and emit renegotiate signal.
+			recover(record, pc, 500);
 		});
 		pc.on('signal', (data): void => {
+			if (pc !== binder.pc) {
+				return;
+			}
+
 			// console.debug('p2p connection signal', pc._id, data);
 			const payload = {
 				data,
@@ -445,24 +536,102 @@ export class P2PController {
 				v: WebRTCBaseManager.version,
 			};
 			// console.debug('>>> p2p webrtc signal', payload);
-			this.sendDatachannelPayload(payload, 0, record.pc);
+			this.sendDatachannelPayload(payload, 0, record.pc).catch((err): void => {
+				console.error('p2p peerconnection signal data channel send failed', pc._id, err);
+				// Auto recovery.
+				recover(record, pc, 500);
+			});
 		});
 		pc.on('connect', (): void => {
+			if (pc !== binder.pc) {
+				return;
+			}
+
 			console.debug('p2p connection connect', pc._id);
 			this.webrtc.dispatchEvent(new WebRTCPeerEvent(this.webrtc, 'pc.connect', record, pc));
 		});
 		pc.on('close', (): void => {
+			if (pc !== binder.pc) {
+				return;
+			}
+
 			console.debug('p2p connection close', pc._id);
 			this.webrtc.dispatchEvent(new WebRTCPeerEvent(this.webrtc, 'pc.closed', record, pc));
+			binder.pc = undefined;
 		});
 		pc.on('iceStateChange', (connectionState, gatheringState): void => {
+			if (pc !== binder.pc) {
+				return;
+			}
+
 			console.debug('p2p iceStateChange', pc._id, connectionState, gatheringState);
 		});
 		pc.on('signalingStateChange', (state): void => {
+			if (pc !== binder.pc) {
+				return;
+			}
+
 			console.debug('p2p signalingStateChange', pc._id, state);
 		});
+		if (!pc._pc.onconnectionstatechange) {
+			// NOTE(longsleep): Backport https://github.com/feross/simple-peer/pull/541
+			pc._pc.onconnectionstatechange = (): void => {
+				if (pc.destroyed) {
+					return;
+				}
+				console.debug('p2p peerconnection connectionstatechange', pc._id, pc._pc.connectionState);
+				if (pc._pc.connectionState === 'failed') {
+					const err = new Error('Connection failed.') as any;
+					err.code = 'ERR_CONNECTION_FAILURE';
+					pc.destroy(err);
+				}
+			}
+		}
 
-		console.debug('p2p peerconnection new', pc._id);
+		// Further stuff for supported kinds.
+		switch (kind) {
+			case 'screenshare':
+				// Screen share is special, only one direction and video only.
+				console.debug('p2p screenshare connection created, preparing', pc._id);
+				if (!streams) {
+					if (record.initiator && 'addTransceiver' in pc) {
+						pc.addTransceiver('video', {
+							direction: 'recvonly',
+						});
+					}
+				} else {
+					streams.forEach((stream: MediaStream): void => {
+						stream.getVideoTracks().forEach((track: MediaStreamTrack): void => {
+							pc.addTrack(track, stream);
+						});
+					});
+				}
+				break;
+
+			default:
+				// Add streams as they are available.
+				if (streams) {
+					streams.forEach((stream: MediaStream): void => {
+						pc.addStream(stream);
+					});
+				}
+				break;
+		}
+
+		console.debug('p2p peerconnection new', pc._id, streams, kind, options, record.initiator);
+
+		/*if (record.initiator) {
+			window.destroyP2P = (): void => {
+				pc.destroy(new Error('lala'));
+			};
+		}*/
+
+		binder.pc = pc;
+
+		if (cb) {
+			cb(pc);
+		}
+
 		return pc;
 	}
 
@@ -499,7 +668,7 @@ export class P2PController {
 		} else {
 			// Send to all if no record given.
 			this.connections.forEach((p2pRecord: P2PRecord): void => {
-				if (p2pRecord.ready && p2pRecord.pc) {
+				if (p2pRecord.ready && p2pRecord.pc && !p2pRecord.pc.destroyed) {
 					this.sendDatachannelPayload(payload, 0, p2pRecord.pc);
 				}
 			});
@@ -575,17 +744,22 @@ export class P2PController {
 				console.debug('p2p already have that connection, so keep it and do nothing', record.id, id);
 			} else {
 				console.debug('p2p start webrtc, announce received', record.id, id);
-				const pc = this.getPeerConnection(record, {
+				const binder = new PCRecord()
+				const pc = this.getPeerConnection(record, binder, {
 					...streamRecord.options,
 					source: streamAnnouncement.token, // NOTE(longsleep): Use source to pass along token.
+				}, (pc: SimplePeer): void => {
+					pc.on('track', (track, mediaStream): void => {
+						if (pc !== binder.pc) {
+							return;
+						}
+						this.webrtc.dispatchEvent(
+							new WebRTCStreamTrackEvent(
+								this.webrtc, 'pc.track', record, track, mediaStream, streamRecord.token),
+						);
+					});
+					streamRecord.connections.set(record.id, binder);
 				});
-				pc.on('track', (track, mediaStream): void => {
-					this.webrtc.dispatchEvent(
-						new WebRTCStreamTrackEvent(
-							this.webrtc, 'pc.track', record, track, mediaStream, streamRecord.token),
-					);
-				});
-				streamRecord.connections.set(record.id, pc);
 				if (!record.initiator) {
 					// Since we are not marked as initiator, let other side know
 					// that we are ready to start webrtc.
@@ -663,7 +837,6 @@ export class P2PController {
 
 	private handleWebRTCMessage(record: P2PRecord, message: IRTMTypeWebRTC): void {
 		// console.debug('<<< p2p webrtc signal', message);
-
 		if (!message.v || message.v < WebRTCBaseManager.version) {
 			console.debug('webrtc ignoring p2p message with outdated version', message.v, message);
 			return;

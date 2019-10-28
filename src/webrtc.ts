@@ -333,6 +333,20 @@ export class WebRTCBaseManager {
 			console.debug('signalingStateChange', pc._id, state);
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.signalingStateChange', record, state));
 		});
+		if (!pc._pc.onconnectionstatechange) {
+			// NOTE(longsleep): Backport https://github.com/feross/simple-peer/pull/541
+			pc._pc.onconnectionstatechange = (): void => {
+				if (pc.destroyed) {
+					return;
+				}
+				console.debug('peerconnection connectionstatechange', pc._id, pc._pc.connectionState);
+				if (pc._pc.connectionState === 'failed') {
+					const err = new Error('Connection failed.') as any;
+					err.code = 'ERR_CONNECTION_FAILURE';
+					pc.destroy(err);
+				}
+			}
+		}
 
 		record.pc = pc;
 		record.rpcid = rpcid;

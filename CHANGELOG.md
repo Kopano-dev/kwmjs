@@ -4,6 +4,14 @@
 
 
 
+## v1.0.1 (2019-10-28)
+
+- Update to forked simple-peer to avoid loosing ICE candidates
+- Make p2p renegotiate a noop
+- Log ICE gathering state changes
+- Reduce amount of Typescript lint warnings
+
+
 ## v1.0.0 (2019-10-17)
 
 - Bump version to 1.0.0

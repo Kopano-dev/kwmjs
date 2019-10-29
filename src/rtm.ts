@@ -107,7 +107,7 @@ export interface IRTMDataWebRTCChannelPipeline {
 
 export class RTMDataError {
 	public code: string;
-	public msg: string = '';
+	public msg = '';
 
 	public constructor(data: IRTMDataError) {
 		this.code = data.code;

@@ -27,18 +27,18 @@ import { getRandomString } from './utils';
  * meta data.
  */
 export class PeerRecord {
-	public id: string = '';
+	public id = '';
 	public profile?: IRTMDataProfile;
 	public extra?: any;
 	public group?: string = '';
-	public hash: string = '';
-	public initiator: boolean = false;
-	public reconnect: boolean = true;
+	public hash = '';
+	public initiator = false;
+	public reconnect = true;
 	public pc?: SimplePeer;
-	public ref: string = '';
-	public state: string = '';
-	public user: string = '';
-	public cid: string = '';
+	public ref = '';
+	public state = '';
+	public user = '';
+	public cid = '';
 	public transaction?: string = '';
 	public rpcid?: string;
 }
@@ -127,7 +127,7 @@ export class WebRTCBaseManager {
 
 	protected localStream?: MediaStream;
 	protected user?: string;
-	protected channel: string = '';
+	protected channel = '';
 	protected channelOptions: ChannelOptions = {};
 	protected group?: GroupController;
 	protected peers: Map<string, PeerRecord>;
@@ -207,7 +207,7 @@ export class WebRTCBaseManager {
 			trickle: true,
 			...options,
 		});
-		const recover = (initiator: boolean, record: PeerRecord, pc: SimplePeer | undefined, delay: number = 500): void => {
+		const recover = (initiator: boolean, record: PeerRecord, pc: SimplePeer | undefined, delay = 500): void => {
 			// To recover from error, create new pc in record and start signaling again.
 			setTimeout((): void => {
 				if (record.pc !== undefined && pc !== record.pc) {
@@ -460,7 +460,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 	 * @param reason The reason sent to the peer why reject was sent.
 	 * @returns Promise providing the accociated channel ID.
 	 */
-	public async doReject(user: string, reason: string = 'reject'): Promise<string> {
+	public async doReject(user: string, reason = 'reject'): Promise<string> {
 		console.debug('webrtc doReject', user, reason);
 
 		if (!this.channel) {
@@ -513,7 +513,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 		const reply = await this.sendWebrtc('webrtc_group', '', record, undefined, 5000) as IRTMTypeWebRTC;
 
 		// Set hash with value from server.
-		record.hash = reply.hash;
+		record.hash = reply.hash; // eslint-disable-line require-atomic-updates
 
 		if (!this.channel && !this.group) {
 			this.handleReplyMessage(reply, () => {
@@ -534,7 +534,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 	 *        be sent hangup requests.
 	 * @returns Promise providing the accociated channel ID.
 	 */
-	public async doHangup(user: string = '', reason: string = 'hangup'): Promise<string> {
+	public async doHangup(user = '', reason = 'hangup'): Promise<string> {
 		console.log('webrtc doHangup', user, reason);
 
 		const channel = this.channel;
@@ -1156,7 +1156,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 		return this.channel;
 	}
 
-	protected async sendHangup(channel: string, record: PeerRecord, reason: string = 'hangup'): Promise<boolean> {
+	protected async sendHangup(channel: string, record: PeerRecord, reason = 'hangup'): Promise<boolean> {
 		this.peers.delete(record.id);
 		if (record.pc) {
 			record.pc.destroy();
@@ -1185,7 +1185,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 	protected async sendWebrtc(
 		subtype: string, channel: string, record: PeerRecord,
-		data?: any, replyTimeout: number = 0, transaction: string = ''): Promise<IRTMTypeEnvelope> {
+		data?: any, replyTimeout = 0, transaction = ''): Promise<IRTMTypeEnvelope> {
 		const payload = {
 			channel,
 			data,

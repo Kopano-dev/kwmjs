@@ -44,16 +44,16 @@ export interface IP2PTypeAnnounceStreams extends IRTMTypeSubTypeEnvelope {
  * A P2PRecord represents a current or future connections p2p status.
  */
 class P2PRecord {
-	public id: string = '';
+	public id = '';
 	public pc: SimplePeer;
-	public user: string = '';
+	public user = '';
 	public config?: any;
-	public initiator: boolean = false;
-	public reconnect: boolean = true;
-	public connected: boolean = false;
-	public ready: boolean = false;
+	public initiator = false;
+	public reconnect = true;
+	public connected = false;
+	public ready = false;
 
-	public ts: number = 0;
+	public ts = 0;
 	public handshake?: IP2PTypeHandshake;
 
 	public streams: Map<string, StreamRecord>;
@@ -81,13 +81,13 @@ class PCRecord {
  * A StreamRecord represents a current or future p2p stream with its connections.
  */
 export class StreamRecord {
-	public static version: number = 1;
+	public static version = 1;
 
-	public id: string = '';
-	public kind: string = '';
+	public id = '';
+	public kind = '';
 	public stream?: MediaStream;
-	public sequence: number = 0;
-	public token: string = '';
+	public sequence = 0;
+	public token = '';
 	public connections: Map<string, PCRecord>;
 	public options?: any;
 
@@ -242,7 +242,7 @@ export class P2PController {
 	 * received data. This client will reject all messages which are from
 	 * received with older version than defined here.
 	 */
-	public static version: number = 20190225;
+	public static version = 20190225;
 
 	public webrtc: WebRTCBaseManager;
 
@@ -458,8 +458,8 @@ export class P2PController {
 	 * connections signals are bound to the associated manager and send via data channel to
 	 * the peer target provided in the record.
 	 *
-	 * @param record P2PRecord to use as peer target.
-	 * @param binder PCRecord which binds peer connections with remote id.
+	 * @param record P2p record to use as peer target.
+	 * @param binder Pc record which binds peer connections with remote id.
 	 * @param opts RTCPeerConnection options as passed along to [[SimplePeer]].
 	 * @param cb Callback function.
 	 */
@@ -479,7 +479,7 @@ export class P2PController {
 			trickle: true,
 			...options,
 		});
-		const recover = (record: P2PRecord, pc: SimplePeer, delay: number = 500): void => {
+		const recover = (record: P2PRecord, pc: SimplePeer, delay = 500): void => {
 			// To recover from error, create new pc in record and start signaling again.
 			setTimeout((): void => {
 				if (binder.pc !== undefined && pc !== binder.pc) {
@@ -639,7 +639,7 @@ export class P2PController {
 		return pc._id;
 	}
 
-	private announceStreams(record?: P2PRecord, force: boolean = false): void {
+	private announceStreams(record?: P2PRecord, force = false): void {
 		const streams = Array<IP2PStreamAnnouncement>();
 		this.localStreams.forEach((streamRecord: StreamRecord): void => {
 			streams.push({
@@ -870,7 +870,7 @@ export class P2PController {
 	 */
 	private async sendDatachannelPayload(
 		payload: IRTMTypeEnvelope,
-		replyTimeout: number = 0,
+		replyTimeout = 0,
 		pc: SimplePeer): Promise<IRTMTypeEnvelope> {
 		return new Promise<IRTMTypeEnvelope>((resolve, reject): void => {
 			if (pc.destroyed) {

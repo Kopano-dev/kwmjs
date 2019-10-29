@@ -31,7 +31,7 @@ export class BaseEvent {
 	}
 
 	public target: any;
-	public defaultPrevented: boolean = false;
+	public defaultPrevented = false;
 
 	public constructor(target: any) {
 		this.target = target;
@@ -90,7 +90,7 @@ export class WebRTCPeerEvent extends BaseEvent {
 	public static eventName = 'WebRTCPeerEvent';
 
 	public event: string;
-	public channel: string = '';
+	public channel = '';
 	public record: IPeerRecord;
 	public details: any;
 
@@ -108,7 +108,7 @@ export class WebRTCStreamEvent extends WebRTCPeerEvent {
 	public stream: MediaStream;
 	public token: string;
 
-	public constructor(target: any, event: string, record: IPeerRecord, stream: MediaStream, token: string = '') {
+	public constructor(target: any, event: string, record: IPeerRecord, stream: MediaStream, token = '') {
 		super(target, event, record);
 		this.stream = stream;
 		this.token = token;
@@ -124,7 +124,7 @@ export class WebRTCStreamTrackEvent extends WebRTCPeerEvent {
 
 	public constructor(
 		target: any, event: string, record: IPeerRecord, track: MediaStreamTrack, stream: MediaStream,
-		token: string = '') {
+		token = '') {
 		super(target, event, record);
 		this.track = track;
 		this.stream = stream;

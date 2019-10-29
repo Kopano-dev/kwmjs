@@ -137,17 +137,17 @@ export class KWM implements IWebRTCManagerContainer {
 	/**
 	 * Boolean flag wether KWM is currently trying to establish a connection.
 	 */
-	public connecting: boolean = false;
+	public connecting = false;
 
 	/**
 	 * Boolean flag wether KWM is currently connected or not.
 	 */
-	public connected: boolean = false;
+	public connected = false;
 
 	/**
 	 * Boolean flag wether KWM is automatically reconnecting or not.
 	 */
-	public reconnecting: boolean = false;
+	public reconnecting = false;
 
 	/**
 	 * Connection information as receveid by the server. This is only set if
@@ -181,12 +181,12 @@ export class KWM implements IWebRTCManagerContainer {
 	private endpoints: IKWMEndpoints;
 	private user?: string;
 	private socket?: WebSocket;
-	private closing: boolean = false;
-	private reconnector: number = 0;
-	private heartbeater: number = 0;
-	private turnRefresher: number = 0;
-	private latency: number = 0;
-	private reconnectAttempts: number = 0;
+	private closing = false;
+	private reconnector = 0;
+	private heartbeater = 0;
+	private turnRefresher = 0;
+	private latency = 0;
+	private reconnectAttempts = 0;
 	private replyHandlers: Map<number, IReplyTimeoutRecord>;
 
 	/**
@@ -195,7 +195,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @param baseURI The base URI to the KWM server API.
 	 * @param options Additional options.
 	 */
-	public constructor(baseURI: string = '', options?: IKWMOptions) {
+	public constructor(baseURI = '', options?: IKWMOptions) {
 		this.webrtc = new WebRTCManager(this);
 
 		this.baseURI = baseURI.replace(/\/$/, '');
@@ -280,7 +280,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @param authMode The type of the authentication identifier value.
 	 * @returns Promise which resolves when the connection was established.
 	 */
-	public async connect(auth: string, authMode: string = 'user'): Promise<void> {
+	public async connect(auth: string, authMode = 'user'): Promise<void> {
 		console.debug('KWM connect', auth, authMode);
 		if (authMode === 'user') {
 			// NOTE(longsleep): Keep a reference to user in user mode for
@@ -293,7 +293,7 @@ export class KWM implements IWebRTCManagerContainer {
 		clearTimeout(this.reconnector);
 		clearTimeout(this.heartbeater);
 		clearTimeout(this.turnRefresher);
-		const reconnector = (fast: boolean = false): Promise<void> => {
+		const reconnector = (fast = false): Promise<void> => {
 			clearTimeout(this.reconnector);
 			if (!this.reconnecting) {
 				return Promise.resolve();
@@ -314,7 +314,7 @@ export class KWM implements IWebRTCManagerContainer {
 			});
 		};
 		const latencyMeter: number[] = [];
-		const heartbeater = (init: boolean = false): void => {
+		const heartbeater = (init = false): void => {
 			clearTimeout(this.heartbeater);
 			if (!this.connected || this.closing) {
 				return;
@@ -402,7 +402,7 @@ export class KWM implements IWebRTCManagerContainer {
 		this.connecting = true;
 		this.dispatchStateChangedEvent();
 
-		return new Promise<void>(async (resolve, reject): Promise<void> => {
+		return new Promise<void>(async (resolve, reject): Promise<void> => { // eslint-disable-line no-async-promise-executor
 			let connectResult: IRTMConnectResponse;
 			let authorizationHeader = '';
 			if (this.options.authorizationType && this.options.authorizationValue) {
@@ -481,7 +481,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 */
 	public async sendWebSocketPayload(
 		payload: IRTMTypeEnvelope,
-		replyTimeout: number = 0,
+		replyTimeout = 0,
 		record?: PeerRecord): Promise<IRTMTypeEnvelope> {
 		return new Promise<IRTMTypeEnvelope>((resolve, reject) => {
 			if (!this.connected || !this.socket || this.closing) {
@@ -547,7 +547,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @returns Promise with the unmarshalled response data once received.
 	 */
 	private async rtmConnect(
-		auth: string, authMode: string = 'user', authorizationHeader?: string): Promise<IRTMConnectResponse> {
+		auth: string, authMode = 'user', authorizationHeader?: string): Promise<IRTMConnectResponse> {
 		const url = this.baseURI + this.endpoints.rtmConnect;
 		const headers = new Headers();
 		if (authorizationHeader) {
@@ -589,7 +589,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @returns Promise with the unmarshalled response data once received.
 	 */
 	private async rtmTURN(
-		auth: string, authMode: string = 'user',
+		auth: string, authMode = 'user',
 		authorizationHeader?: string): Promise<IRTMTURNResponse> {
 		const url = this.baseURI + this.endpoints.rtmTurn;
 		const headers = new Headers();
@@ -663,7 +663,7 @@ export class KWM implements IWebRTCManagerContainer {
 				reject(new Error('connect_timeout'));
 			}, KWMInit.options.connectTimeout);
 
-			socket.onopen = (event: Event) => {
+			socket.onopen = (event: Event): void => {
 				clearTimeout(timeout);
 				if (isTimeout) {
 					return;
@@ -679,7 +679,7 @@ export class KWM implements IWebRTCManagerContainer {
 				this.connecting = false;
 				this.socket.onmessage = this.handleWebSocketMessage.bind(this);
 			};
-			socket.onclose = (event: CloseEvent) => {
+			socket.onclose = (event: CloseEvent): void => {
 				clearTimeout(timeout);
 				if (isTimeout) {
 					return;
@@ -705,7 +705,7 @@ export class KWM implements IWebRTCManagerContainer {
 					reconnector();
 				}
 			};
-			socket.onerror = (event: Event) => {
+			socket.onerror = (event: Event): void => {
 				clearTimeout(timeout);
 				if (isTimeout) {
 					return;

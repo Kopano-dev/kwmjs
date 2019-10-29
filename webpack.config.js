@@ -70,7 +70,10 @@ module.exports = {
 			sourceMap: true,
 			uglifyOptions: {
 				ecma: 8,
-				warnings: true
+				warnings: true,
+				output: {
+					comments: false
+				}
 			}
 		}),
 		new DefinePlugin({

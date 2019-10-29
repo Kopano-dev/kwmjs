@@ -10,7 +10,7 @@
   },
   "plugins": ["@typescript-eslint"],
   "rules": {
-    "no-console": "warn",
+    "no-console": "off",
     "@typescript-eslint/indent": ["error", "tab"],
     "@typescript-eslint/interface-name-prefix": ["off"]
   }

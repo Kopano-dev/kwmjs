@@ -57,7 +57,8 @@ module.exports = {
 				exclude: /node_modules/,
 				options: {
 					compilerOptions: {
-						target: target
+						target: target,
+						declarationDir: 'umd/src'
 					}
 				}
 			}

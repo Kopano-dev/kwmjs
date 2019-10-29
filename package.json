@@ -25,14 +25,17 @@
     "license-webpack-plugin": "^1.0.0",
     "simple-peer": "npm:@longsleep/simple-peer",
     "source-map-explorer": "^1.7.0",
-    "ts-loader": "^4.2.0",
+    "ts-loader": "^6.2.1",
     "typedoc": "^0.15.0",
-    "typescript": "^3.5.1",
+    "typescript": "3.6.4",
     "uglifyjs-webpack-plugin": "^1.0.0-beta.2",
     "url-search-params": "^0.10.0",
     "webpack": "4.5.0",
     "webpack-cli": "^2.0.14",
     "yarn-deduplicate": "^1.1.1"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "resolutions": {
+    "**/typescript": "3.6.4"
+  }
 }

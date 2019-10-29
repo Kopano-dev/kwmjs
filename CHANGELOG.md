@@ -4,7 +4,19 @@
 
 
 
-## v1.0.1 (2019-10-28)
+## v1.1.0 (2019-10-29)
+
+- Update webpack dev dependencies
+- Make build reproducible
+- Update Typescript dev dependencies
+- Update typedoc and deduplicate 3rd party dev dependencies
+- Update 3rd party dev dependencies
+- Ignore console for linting
+- Fix more linting errors
+- Add automatic reconnect on connection failures
+
+
+## v1.0.1 (2019-10-29)
 
 - Update to forked simple-peer to avoid loosing ICE candidates
 - Make p2p renegotiate a noop

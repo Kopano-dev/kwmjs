@@ -19,7 +19,8 @@ pipeline {
 		}
 		stage('Build') {
 			steps {
-				sh 'make'
+				sh 'make DATE=reproducible'
+				sh 'sha256sum ./umd/kwm.js*'
 			}
 		}
 		stage('Docs') {
@@ -29,6 +30,8 @@ pipeline {
 		}
 		stage('Dist') {
 			steps {
+				sh '$(git diff --stat)'
+				sh 'test -z "$(git diff --shortstat 2>/dev/null |tail -n1)" && echo "Clean check passed."'
 				sh 'make dist'
 				archiveArtifacts artifacts: 'dist/*.tgz', fingerprint: true
 			}

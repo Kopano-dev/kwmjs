@@ -4,6 +4,12 @@
 
 
 
+## v1.1.1 (2019-12-10)
+
+- Prevent early PC recreate after error, instead enforce recover
+- Use upstream relase of simple-peer again
+
+
 ## v1.1.0 (2019-10-29)
 
 - Update webpack dev dependencies

@@ -34,6 +34,7 @@ export class PeerRecord {
 	public hash = '';
 	public initiator = false;
 	public reconnect = true;
+	public recover = false;
 	public pc?: SimplePeer;
 	public ref = '';
 	public state = '';
@@ -209,11 +210,16 @@ export class WebRTCBaseManager {
 		});
 		const recover = (initiator: boolean, record: PeerRecord, pc: SimplePeer | undefined, delay = 500): void => {
 			// To recover from error, create new pc in record and start signaling again.
+			if (record.recover) {
+				// Prevent double recover.
+				return;
+			}
+			record.recover = true;
 			setTimeout((): void => {
 				if (record.pc !== undefined && pc !== record.pc) {
 					return;
 				}
-				if (!record.reconnect) {
+				if (!record.reconnect || !record.recover) {
 					return;
 				}
 
@@ -350,6 +356,7 @@ export class WebRTCBaseManager {
 
 		record.pc = pc;
 		record.rpcid = rpcid;
+		record.recover = false;
 
 		console.debug('peerconnection new', pc._id);
 		this.p2p.registerConnection(pc, record.user, this.config);
@@ -1015,6 +1022,10 @@ export class WebRTCManager extends WebRTCBaseManager {
 				record = this.peers.get(message.source) as PeerRecord;
 				if (!record) {
 					console.warn('webrtc signal for unknown peer', message.source, this.peers);
+					return;
+				}
+				if (record.recover) {
+					console.debug('webrtc signal while in recover ignored', message.source);
 					return;
 				}
 				if (record.ref !== message.state && record.ref) {

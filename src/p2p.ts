@@ -485,7 +485,7 @@ export class P2PController {
 				if (binder.pc !== undefined && pc !== binder.pc) {
 					return;
 				}
-				if (!record.reconnect) {
+				if (!record.reconnect || !record.connected) {
 					return;
 				}
 

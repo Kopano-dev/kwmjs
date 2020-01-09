@@ -4,6 +4,12 @@
 
 
 
+## v1.1.2 (2020-01-09)
+
+- Bind p2p reconnects to webrtc connection
+- Avoid loosing required negotiation when not the initator
+
+
 ## v1.1.1 (2019-12-10)
 
 - Prevent early PC recreate after error, instead enforce recover

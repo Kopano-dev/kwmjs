@@ -1076,16 +1076,14 @@ export class WebRTCManager extends WebRTCBaseManager {
 					console.warn('webrtc signal for unknown peer', message.source, this.peers);
 					return;
 				}
-				if (record.recover) {
-					console.debug('webrtc signal while in recover ignored', message.source);
-					return;
-				}
+
 				if (record.ref !== message.state && record.ref) {
 					console.warn('webrtc signal with wrong state', record.ref, message.state);
 					return;
 				}
 
 				if (message.pcid !== record.rpcid) {
+					record.recover = false;
 					if (record.rpcid === undefined) {
 						if (record.pc && message.pcid !== undefined) {
 							// Not bound yet, accept and bind incoming id.
@@ -1101,6 +1099,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 							record.pc = undefined;
 						}
 					}
+				} else if (record.recover) {
+					console.debug('webrtc signal while in recover ignored', message.source);
+					return;
 				}
 
 				if (!record.pc) {

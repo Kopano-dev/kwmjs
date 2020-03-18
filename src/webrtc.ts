@@ -1124,6 +1124,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 							const record = new PeerRecord();
 							record.id = pipeline.pipeline;
 							record.user = pipeline.pipeline;
+							record.group = this.group.id;
 							record.state = getRandomString(12);
 							record.ref = pipeline.pipeline;
 							record.hash = this.group.record.hash;

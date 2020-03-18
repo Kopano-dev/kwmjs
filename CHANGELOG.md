@@ -4,6 +4,11 @@
 
 
 
+## v1.1.3 (2020-03-18)
+
+- Add missing group attribute when using pipeline forward
+
+
 ## v1.1.2 (2020-01-09)
 
 - Bind p2p reconnects to webrtc connection

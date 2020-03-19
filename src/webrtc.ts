@@ -680,7 +680,6 @@ export class WebRTCManager extends WebRTCBaseManager {
 		this.localStream = stream;
 
 		// Update established peers as well.
-		const channelOptions = this.channelOptions;
 		this.peers.forEach((peer: PeerRecord) => {
 			if (this.isLocalStreamTarget(peer) && peer.pc) {
 				if (oldStream) {
@@ -717,7 +716,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 		}
 
 		this.peers.forEach((peer: PeerRecord) => {
-			if (peer.pc) {
+			if (this.isLocalStreamTarget(peer) && peer.pc) {
 				peer.pc.addTrack(track, stream);
 			}
 		});
@@ -733,7 +732,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 		}
 
 		this.peers.forEach((peer: PeerRecord) => {
-			if (peer.pc) {
+			if (this.isLocalStreamTarget(peer) && peer.pc) {
 				// NOTE(longsleep): This will destroy the peer connection if the
 				// track was not previously added.
 				peer.pc.removeTrack(track, stream);

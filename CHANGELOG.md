@@ -4,6 +4,11 @@
 
 
 
+## v1.1.4 (2020-03-19)
+
+- Only add/remove tracks to/from the local stream target
+
+
 ## v1.1.3 (2020-03-18)
 
 - Add missing group attribute when using pipeline forward

@@ -241,6 +241,13 @@ export class WebRTCBaseManager {
 				}
 			}, delay);
 		}
+		const signalingTimeout = setTimeout((): void => {
+			if (pc !== record.pc) {
+				return;
+			}
+			console.debug('peerconnection initial signaling timed out', pc._id);
+			recover(initiator, record, pc, 0);
+		}, 30000);
 		pc.on('error', (err): void => {
 			if (pc !== record.pc) {
 				return;
@@ -337,6 +344,10 @@ export class WebRTCBaseManager {
 			}
 
 			console.debug('signalingStateChange', pc._id, state);
+			if (state === 'stable' && pc._pc.localDescription !== null && pc._pc.remoteDescription !== null) {
+				console.debug('peerconnection initial signaling now stable', pc._id, state);
+				clearTimeout(signalingTimeout);
+			}
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.signalingStateChange', record, state));
 		});
 		if (!pc._pc.onconnectionstatechange) {

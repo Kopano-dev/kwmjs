@@ -506,6 +506,13 @@ export class P2PController {
 				}
 			}, delay);
 		}
+		const signalingTimeout = setTimeout((): void => {
+			if (pc !== record.pc) {
+				return;
+			}
+			console.debug('p2p peerconnection initial signaling timed out', pc._id);
+			recover(record, pc, 0);
+		}, 30000);
 		pc.on('error', (err): void => {
 			if (pc !== binder.pc) {
 				return;
@@ -572,6 +579,10 @@ export class P2PController {
 			}
 
 			console.debug('p2p signalingStateChange', pc._id, state);
+			if (state === 'stable' && pc._pc.localDescription !== null && pc._pc.remoteDescription !== null) {
+				console.debug('p2p peerconnection initial signaling now stable', pc._id, state);
+				clearTimeout(signalingTimeout);
+			}
 		});
 		if (!pc._pc.onconnectionstatechange) {
 			// NOTE(longsleep): Backport https://github.com/feross/simple-peer/pull/541

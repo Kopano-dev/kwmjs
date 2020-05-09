@@ -605,21 +605,23 @@ export class WebRTCManager extends WebRTCBaseManager {
 		const peers = this.peers;
 		const all = new Map<string, boolean>();
 
-		// Find new required peers.
 		let ok = false;
-		for (const user of users) {
-			if (user === ourselves) {
-				// Ignore ourselves but set OK.
-				ok = true;
-				continue;
+		if (users.length > 0) {
+			// Find new required peers.
+			for (const user of users) {
+				if (user === ourselves) {
+					// Ignore ourselves but set OK.
+					ok = true;
+					continue;
+				}
+				all.set(user, true);
+				if (!peers.has(user)) {
+					added.push(user);
+				}
 			}
-			all.set(user, true);
-			if (!peers.has(user)) {
-				added.push(user);
+			if (!ok) {
+				throw new Error('mesh without self');
 			}
-		}
-		if (!ok) {
-			throw new Error('mesh without self');
 		}
 
 		// Find obsolete peers which we have but no longer in group.
@@ -1130,8 +1132,18 @@ export class WebRTCManager extends WebRTCBaseManager {
 						// NOTE(longsleep): Enable new Peer for pipeline. This
 						// peer will be used to send local streams to the
 						// pipeline.
-						if (!this.peers.has(pipeline.pipeline)) {
-							const record = new PeerRecord();
+						let record = this.peers.get(pipeline.pipeline);
+						if (record && record.hash !== this.group.record.hash) {
+							// Hash changed, kill connection.
+							console.debug('webrtc pipeline peer group hash changed, killing');
+							if (record.pc) {
+								record.pc.destroy();
+								record.pc = undefined;
+							}
+							record = undefined; // Replace sender record.
+						}
+						if (!record) {
+							record = new PeerRecord();
 							record.id = pipeline.pipeline;
 							record.user = pipeline.pipeline;
 							record.group = this.group.id;

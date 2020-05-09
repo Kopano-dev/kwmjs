@@ -41,10 +41,9 @@ export class GroupController {
 
 				this.channel = message.channel;
 
-				const members = message.data.group.members;
+				const { members, reset } = message.data.group;
 				members.sort();
-
-				this.updateMembers(members);
+				this.updateMembers(members, reset);
 				break;
 			}
 
@@ -59,11 +58,16 @@ export class GroupController {
 		return this.members.indexOf(user) >= 0;
 	}
 
-	private updateMembers(members: string[]): void {
+	private async updateMembers(members: string[], reset = false): Promise<void> {
+		if (reset) {
+			// Kill all existing connections if reset is set.
+			await this.webrtc.doMesh([], this.record)
+		}
+
+		// Establish mesh.
 		const previous = this.members;
 		this.members = members;
-
-		this.webrtc.doMesh(members, this.record).catch(err => {
+		await this.webrtc.doMesh(members, this.record).catch(err => {
 			console.error('failed to establish mesh for all group members', err);
 		});
 	}

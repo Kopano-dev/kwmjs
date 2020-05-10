@@ -13,7 +13,7 @@ import * as SimplePeer from 'simple-peer';
 import { WebRTCAnnounceStreamsEvent, WebRTCPeerEvent, WebRTCStreamTrackEvent } from './events';
 import { IRTMTypeEnvelope, IRTMTypeSubTypeEnvelope, IRTMTypeWebRTC } from './rtm';
 import { getRandomString } from './utils';
-import { WebRTCBaseManager } from './webrtc';
+import { WebRTCBaseManager, PeerRecord } from './webrtc';
 
 /**
  * The sequence counter for sent data channel message payloads. It is automatically
@@ -47,6 +47,7 @@ class P2PRecord {
 	public id = '';
 	public pc: SimplePeer;
 	public user = '';
+	public owner?: PeerRecord;
 	public config?: any;
 	public initiator = false;
 	public reconnect = true;
@@ -58,10 +59,11 @@ class P2PRecord {
 
 	public streams: Map<string, StreamRecord>;
 
-	public constructor(id: string, pc: SimplePeer, user: string, config: any, initiator: boolean) {
+	public constructor(id: string, pc: SimplePeer, owner: PeerRecord, config: any, initiator: boolean) {
 		this.id = id;
 		this.pc = pc;
-		this.user = user;
+		this.user = owner.user;
+		this.owner = owner;
 		this.config = config;
 		this.initiator = initiator;
 
@@ -325,17 +327,17 @@ export class P2PController {
 	 * Registers peer connections per user with config.
 	 *
 	 * @param pc Connection to register.
-	 * @param user Owner user of the provided connection.
+	 * @param owner Owner peer record of the provided connection.
 	 * @param config Configuration passed along to newly created records.
 	 */
-	public registerConnection(pc: SimplePeer, user: string, config: any): void {
+	public registerConnection(pc: SimplePeer, owner: PeerRecord, config: any): void {
 		// console.debug('p2p add', pc._id, pc.initiator, user, config);
 		const id = this.getConnectionID(pc);
 		const old = this.connections.get(id);
 		if (old) {
 			console.warn('p2p controller add of existing connection', id);
 		}
-		const record = new P2PRecord(id, pc, user, config, pc.initiator);
+		const record = new P2PRecord(id, pc, owner, config, pc.initiator);
 		this.connections.set(id, record);
 	}
 
@@ -401,6 +403,7 @@ export class P2PController {
 		}
 		if (record) {
 			record.ready = false;
+			record.owner = undefined;
 			record.connected = false;
 			record.handshake = undefined;
 			this.connections.delete(id);
@@ -675,12 +678,16 @@ export class P2PController {
 			if (!record.ready || !record.pc) {
 				throw new Error('p2p record not ready to announce streams');
 			}
-			this.sendDatachannelPayload(payload, 0, record.pc);
+			if (record.owner && this.webrtc.isLocalStreamTarget(record.owner)) {
+				this.sendDatachannelPayload(payload, 0, record.pc);
+			}
 		} else {
 			// Send to all if no record given.
-			this.connections.forEach((p2pRecord: P2PRecord): void => {
+			this.connections.forEach((p2pRecord: P2PRecord, key: string): void => {
 				if (p2pRecord.ready && p2pRecord.pc && !p2pRecord.pc.destroyed) {
-					this.sendDatachannelPayload(payload, 0, p2pRecord.pc);
+					if (p2pRecord.owner && this.webrtc.isLocalStreamTarget(p2pRecord.owner)) {
+						this.sendDatachannelPayload(payload, 0, p2pRecord.pc);
+					}
 				}
 			});
 		}

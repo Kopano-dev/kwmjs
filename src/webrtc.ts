@@ -385,7 +385,7 @@ export class WebRTCBaseManager {
 		record.recover = false;
 
 		console.debug('peerconnection new', pc._id);
-		this.p2p.registerConnection(pc, record.user, this.config);
+		this.p2p.registerConnection(pc, record, this.config);
 		this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.new', record, pc));
 
 		return pc;
@@ -396,7 +396,7 @@ export class WebRTCBaseManager {
 	 * be used for local streams for the accociated manager. If the local
 	 * stream target is not set, all records are local stream target.
 	 */
-	protected isLocalStreamTarget(record: PeerRecord): boolean {
+	public isLocalStreamTarget(record: PeerRecord): boolean {
 		const { localStreamTarget } = this.channelOptions;
 
 		return !localStreamTarget || localStreamTarget === record;

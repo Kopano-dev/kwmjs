@@ -105,6 +105,11 @@ export interface IRTMDataWebRTCChannelPipeline {
 	mode: string;
 }
 
+export interface IRTMDataWebRTCTransceiverRequest {
+	kind: string;
+	init: RTCRtpTransceiverInit;
+}
+
 export class RTMDataError {
 	public code: string;
 	public msg = '';

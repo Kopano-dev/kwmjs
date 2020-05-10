@@ -19,7 +19,7 @@ import {
 import { GroupController } from './group';
 import { P2PController } from './p2p';
 import { IRTMDataProfile, IRTMDataWebRTCChannelExtra, IRTMTypeEnvelope, IRTMTypeError, IRTMTypeHello,
-	IRTMTypeWebRTC } from './rtm';
+	IRTMTypeWebRTC, IRTMDataWebRTCTransceiverRequest } from './rtm';
 import { getRandomString } from './utils';
 
 /**
@@ -55,6 +55,8 @@ export class WebRTCOptions {
 	public answerConstraints?: RTCAnswerOptions;
 	public localSDPTransform?: (sdp: string) => string;
 	public remoteSDPTransform?: (sdp: string) => string;
+	public transceiverRequestTransform?: (transceiverRequest: IRTMDataWebRTCTransceiverRequest) => IRTMDataWebRTCTransceiverRequest | null | undefined;
+	public onRemoteDescriptionSet?: (owner: SimplePeer, pc: RTCPeerConnection) => Promise<void>;
 }
 
 /**
@@ -192,7 +194,7 @@ export class WebRTCBaseManager {
 	}
 
 	protected getPeerConnection(initiator: boolean, record: PeerRecord, rpcid?: string): SimplePeer {
-		const { localSDPTransform, remoteSDPTransform, ...options } = this.options;
+		const { localSDPTransform, remoteSDPTransform, onRemoteDescriptionSet, ...options } = this.options;
 
 		const streams = [];
 		if (this.isLocalStreamTarget(record) && this.localStream) {
@@ -208,6 +210,19 @@ export class WebRTCBaseManager {
 			trickle: true,
 			...options,
 		});
+		if (pc._pc !== undefined) {
+			/// HACK(longsleep): Overrides for additonal hook support.
+			((owner: SimplePeer, pc: RTCPeerConnection): void => {
+				const setRemoteDescription = pc.setRemoteDescription.bind(pc);
+				pc.setRemoteDescription = (sdp: RTCSessionDescription): Promise<void> => {
+					return setRemoteDescription(sdp).then(() => {
+						if (onRemoteDescriptionSet) {
+							return onRemoteDescriptionSet(owner, pc);
+						}
+					})
+				}
+			})(pc, pc._pc);
+		}
 		const recover = (initiator: boolean, record: PeerRecord, pc: SimplePeer | undefined, delay = 500): void => {
 			// To recover from error, create new pc in record and start signaling again.
 			if (record.recover) {
@@ -343,7 +358,7 @@ export class WebRTCBaseManager {
 				return;
 			}
 
-			console.debug('signalingStateChange', pc._id, state);
+			console.debug('signalingStateChange', pc._id, state, pc._pc.localDescription !== null, pc._pc.remoteDescription !== null);
 			if (state === 'stable' && pc._pc.localDescription !== null && pc._pc.remoteDescription !== null) {
 				console.debug('peerconnection initial signaling now stable', pc._id, state);
 				clearTimeout(signalingTimeout);
@@ -392,6 +407,8 @@ export class WebRTCBaseManager {
  * A WebRTCManager bundles all WebRTC action for client side calling.
  */
 export class WebRTCManager extends WebRTCBaseManager {
+	private mode?: string;
+
 	/**
 	 * Triggers a WebRTC call request via RTM to the provided user.
 	 *
@@ -716,6 +733,29 @@ export class WebRTCManager extends WebRTCBaseManager {
 	 */
 	public setScreenshareStream(id: string, stream?: MediaStream): void {
 		this.p2p.setLocalStream(id, 'screenshare', stream);
+	}
+
+	/**
+	 * Set new mode, whenever the mode changes, all associated peers connections
+	 * trigger renegotiaton.
+	 *
+	 * @param mode Mew mode to set.
+	 * @returns true when mode was changed, false when unchanged.
+	 */
+	public setMode(mode?: string): boolean {
+		if (mode === this.mode) {
+			return false;
+		}
+		this.mode = mode;
+
+		// Trigger negotiation for all peers with connection.
+		this.peers.forEach((peer: PeerRecord) => {
+			if (peer.pc) {
+				peer.pc._needsNegotiation();
+			}
+		});
+
+		return true;
 	}
 
 	/**
@@ -1088,6 +1128,16 @@ export class WebRTCManager extends WebRTCBaseManager {
 					// Remote SDP transform support.
 					message.data.sdp = this.options.remoteSDPTransform(message.data.sdp);
 				}
+
+				if (message.data && message.data.transceiverRequest && this.options.transceiverRequestTransform) {
+					// Transform transceiver request support.
+					message.data.transceiverRequest = this.options.transceiverRequestTransform(message.data.transceiverRequest);
+					if (!message.data.transceiverRequest) {
+						// Skip transceiver request if hook yielded none.
+						return;
+					}
+				}
+
 				record.pc.signal(message.data);
 
 				break;

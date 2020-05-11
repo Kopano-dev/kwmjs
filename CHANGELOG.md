@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+
+
+## v1.2.0 (2020-05-11)
+
 - Allow replaced rpcid to take over pc recovery
 - Honor local stream target setting for p2p extra streams
 - Improve audio only mode support and add mode change toggle

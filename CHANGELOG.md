@@ -2,9 +2,15 @@
 
 ## Unreleased
 
+- Allow replaced rpcid to take over pc recovery
+- Honor local stream target setting for p2p extra streams
+- Improve audio only mode support and add mode change toggle
+- Reset mesh if channel is reset or channel hash has changed
+- Use simple peer upstream version
+- Implement signaling time out detection
 
 
-## v1.1.4 (2020-03-19)
+## v1.1.4 (2020-03-20)
 
 - Only add/remove tracks to/from the local stream target
 

@@ -4,6 +4,11 @@
 
 
 
+## v1.2.1 (2020-05-13)
+
+- Improve signaling timeout detection
+
+
 ## v1.2.0 (2020-05-11)
 
 - Allow replaced rpcid to take over pc recovery

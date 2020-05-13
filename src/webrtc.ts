@@ -223,6 +223,7 @@ export class WebRTCBaseManager {
 				}
 			})(pc, pc._pc);
 		}
+		let signalingTimeout: any = undefined;
 		const recover = (initiator: boolean, record: PeerRecord, pc: SimplePeer | undefined, delay = 500): void => {
 			// To recover from error, create new pc in record and start signaling again.
 			if (record.recover) {
@@ -230,6 +231,10 @@ export class WebRTCBaseManager {
 				return;
 			}
 			record.recover = true;
+			if (signalingTimeout !== undefined) {
+				clearTimeout(signalingTimeout);
+				signalingTimeout = undefined;
+			}
 			setTimeout((): void => {
 				if (record.pc !== undefined && pc !== record.pc) {
 					return;
@@ -256,7 +261,7 @@ export class WebRTCBaseManager {
 				}
 			}, delay);
 		}
-		const signalingTimeout = setTimeout((): void => {
+		signalingTimeout = setTimeout((): void => {
 			if (pc !== record.pc) {
 				return;
 			}
@@ -264,6 +269,10 @@ export class WebRTCBaseManager {
 			recover(initiator, record, pc, 0);
 		}, 30000);
 		pc.on('error', (err): void => {
+			if (signalingTimeout !== undefined) {
+				clearTimeout(signalingTimeout);
+				signalingTimeout = undefined;
+			}
 			if (pc !== record.pc) {
 				return;
 			}
@@ -304,6 +313,10 @@ export class WebRTCBaseManager {
 			});
 		});
 		pc.on('connect', (): void => {
+			if (signalingTimeout !== undefined) {
+				clearTimeout(signalingTimeout);
+				signalingTimeout = undefined;
+			}
 			if (pc !== record.pc) {
 				return;
 			}
@@ -313,6 +326,10 @@ export class WebRTCBaseManager {
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.connect', record, pc));
 		});
 		pc.on('close', (): void => {
+			if (signalingTimeout !== undefined) {
+				clearTimeout(signalingTimeout);
+				signalingTimeout = undefined;
+			}
 			if (pc !== record.pc) {
 				return;
 			}
@@ -360,8 +377,11 @@ export class WebRTCBaseManager {
 
 			console.debug('signalingStateChange', pc._id, state, pc._pc.localDescription !== null, pc._pc.remoteDescription !== null);
 			if (state === 'stable' && pc._pc.localDescription !== null && pc._pc.remoteDescription !== null) {
-				console.debug('peerconnection initial signaling now stable', pc._id, state);
-				clearTimeout(signalingTimeout);
+				if (signalingTimeout !== undefined) {
+					console.debug('peerconnection initial signaling now stable', pc._id, state);
+					clearTimeout(signalingTimeout);
+					signalingTimeout = undefined;
+				}
 			}
 			this.dispatchEvent(new WebRTCPeerEvent(this, 'pc.signalingStateChange', record, state));
 		});
@@ -1243,9 +1263,11 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 	protected async sendHangup(channel: string, record: PeerRecord, reason = 'hangup'): Promise<boolean> {
 		this.peers.delete(record.id);
-		if (record.pc) {
-			record.pc.destroy();
+		record.reconnect = false;
+		const pc = record.pc;
+		if (pc) {
 			record.pc = undefined;
+			pc.destroy();
 		}
 
 		const event = new WebRTCPeerEvent(this, 'destroycall', record);

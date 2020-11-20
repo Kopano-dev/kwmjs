@@ -3,12 +3,12 @@
 pipeline {
 	agent {
 		docker {
-			image 'node:10'
-			args '-u 0'
+			image 'node:14'
 		}
 	}
 	environment {
 		CI = 'true'
+		YARN_CACHE_FOLDER = '/tmp/.yarn-cache'
 	}
 	stages {
 		stage('Lint') {

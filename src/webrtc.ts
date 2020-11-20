@@ -891,7 +891,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 
 		switch (message.type) {
 			case 'webrtc':
-				this.handleWebRTCMessage(message as IRTMTypeWebRTC);
+				this.handleWebRTCMessage(message as IRTMTypeWebRTC, true);
 				break;
 
 			default:
@@ -905,8 +905,9 @@ export class WebRTCManager extends WebRTCBaseManager {
 	 *
 	 * @private
 	 * @param message Payload message.
+	 * @param isReply Defines wether the provided message is from a reply.
 	 */
-	public handleWebRTCMessage(message: IRTMTypeWebRTC): void {
+	public handleWebRTCMessage(message: IRTMTypeWebRTC, isReply = false): void {
 		// console.debug('<<< webrtc', message);
 		let record: PeerRecord;
 
@@ -1045,7 +1046,15 @@ export class WebRTCManager extends WebRTCBaseManager {
 					return;
 				}
 
-				this.channel = message.channel;
+				console.log('xxx webrtc_channel', this, this.channel, isReply, message);
+				if (isReply) {
+					this.channel = message.channel;
+				} else {
+					if (this.channel !== message.channel) {
+						console.debug('webrtc channel data for wrong channel', this.channel, message.channel);
+						return;
+					}
+				}
 
 				if (message.data) {
 					this.handleWebRTCExtraChannelData(message);

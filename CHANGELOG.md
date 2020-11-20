@@ -4,6 +4,13 @@
 
 
 
+## v1.2.2 (2020-11-20)
+
+- Run CI pipeline with Node 14
+- Use warningsng plugin as checkstyle is deprecated
+- Avoid channel updates after hangup
+
+
 ## v1.2.1 (2020-05-13)
 
 - Improve signaling timeout detection

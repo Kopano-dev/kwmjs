@@ -1046,7 +1046,6 @@ export class WebRTCManager extends WebRTCBaseManager {
 					return;
 				}
 
-				console.log('xxx webrtc_channel', this, this.channel, isReply, message);
 				if (isReply) {
 					this.channel = message.channel;
 				} else {

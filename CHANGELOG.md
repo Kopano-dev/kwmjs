@@ -4,6 +4,11 @@
 
 
 
+## v1.2.3 (2020-11-24)
+
+- Remove forgotten debug logging
+
+
 ## v1.2.2 (2020-11-20)
 
 - Run CI pipeline with Node 14

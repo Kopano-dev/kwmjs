@@ -17,9 +17,10 @@ import { Plugins } from './plugins';
 import {
 	IRTMConnectResponse, IRTMDataError, IRTMTURNResponse, IRTMTypeEnvelope,
 	IRTMTypeEnvelopeReply, IRTMTypeError, IRTMTypeHello, IRTMTypePingPong, IRTMTypeWebRTC,
-	ISelf, ITURNConfig, RTMDataError } from './rtm';
+	ISelf, ITURNConfig, RTMDataError, IRTMTypeChats } from './rtm';
 import { makeAbsoluteURL } from './utils';
 import { IWebRTCManagerContainer, PeerRecord, WebRTCManager } from './webrtc';
+import { IChatsManagerContainer, ChatsManager } from './chats';
 
 /**
  * The sequence counter for sent websocket message payloads. It is automatically
@@ -131,7 +132,7 @@ export class KWMInit {
  * KWM is the main Kopano Web Meetings Javascript library entry point. It holds
  * the status and connections to KWM.
  */
-export class KWM implements IWebRTCManagerContainer {
+export class KWM implements IWebRTCManagerContainer, IChatsManagerContainer {
 	public static version: string = __VERSION__;
 
 	/**
@@ -176,6 +177,11 @@ export class KWM implements IWebRTCManagerContainer {
 	 */
 	public webrtc: WebRTCManager;
 
+	/**
+	 * Reference to Chats related functionality in KWM.
+	 */
+	public chats: ChatsManager;
+
 	private baseURI: string;
 	private options: IKWMOptions;
 	private endpoints: IKWMEndpoints;
@@ -197,6 +203,7 @@ export class KWM implements IWebRTCManagerContainer {
 	 */
 	public constructor(baseURI = '', options?: IKWMOptions) {
 		this.webrtc = new WebRTCManager(this);
+		this.chats = new ChatsManager(this);
 
 		this.baseURI = baseURI.replace(/\/$/, '');
 		this.options = options || {};
@@ -475,14 +482,12 @@ export class KWM implements IWebRTCManagerContainer {
 	 * @param payload The payload data.
 	 * @param replyTimeout Timeout in milliseconds for reply callback. If 0,
 	 *        then no callback is expected and none is registered.
-	 * @param record Record of the payloads target peer.
 	 * @returns Promise which resolves when the reply was received or immediately
 	 *          when no timeout was given.
 	 */
 	public async sendWebSocketPayload(
 		payload: IRTMTypeEnvelope,
-		replyTimeout = 0,
-		record?: PeerRecord): Promise<IRTMTypeEnvelope> {
+		replyTimeout = 0): Promise<IRTMTypeEnvelope> {
 		return new Promise<IRTMTypeEnvelope>((resolve, reject) => {
 			if (!this.connected || !this.socket || this.closing) {
 				reject(new Error('no_connection'));
@@ -818,6 +823,9 @@ export class KWM implements IWebRTCManagerContainer {
 				break;
 			case 'webrtc':
 				this.webrtc.handleWebRTCMessage(message as IRTMTypeWebRTC);
+				break;
+			case 'chats':
+				this.chats.handleChatsMessage(message as IRTMTypeChats);
 				break;
 			case 'error':
 				console.warn('kwm server error', message);

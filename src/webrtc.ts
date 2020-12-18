@@ -71,7 +71,7 @@ export class ChannelOptions {
  * the ouside world.
  */
 export interface IWebRTCManagerContainer {
-	sendWebSocketPayload(payload: IRTMTypeEnvelope, replyTimeout?: number, record?: PeerRecord): Promise<IRTMTypeEnvelope>;
+	sendWebSocketPayload(payload: IRTMTypeEnvelope, replyTimeout?: number): Promise<IRTMTypeEnvelope>;
 }
 
 /**
@@ -306,7 +306,7 @@ export class WebRTCBaseManager {
 				v: WebRTCManager.version, // eslint-disable-line @typescript-eslint/no-use-before-define
 			};
 			// console.debug('>>> send signal', payload);
-			this.kwm.sendWebSocketPayload(payload, undefined, record).catch((err): void => {
+			this.kwm.sendWebSocketPayload(payload, undefined).catch((err): void => {
 				console.error('peerconnection signal websocket send failed', pc._id, err);
 				// Auto recovery.
 				recover(initiator, record, record.pc, 500);
@@ -1316,7 +1316,7 @@ export class WebRTCManager extends WebRTCBaseManager {
 			v: WebRTCManager.version,
 		};
 
-		return this.kwm.sendWebSocketPayload(payload,  replyTimeout, record);
+		return this.kwm.sendWebSocketPayload(payload,  replyTimeout);
 	}
 
 	/**

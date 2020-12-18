@@ -85,6 +85,15 @@ export interface IRTMTypeWebRTC extends IRTMTypeSubTypeEnvelope {
 	pcid?: string;
 }
 
+export interface IRTMTypeChats extends IRTMTypeSubTypeEnvelope {
+	channel: string;
+	profile?: IRTMDataProfile;
+	group?: string;
+	data: any;
+	v: number;
+	transaction?: string;
+}
+
 export interface IRTMDataProfile {
 	name?: string;
 }
@@ -108,6 +117,16 @@ export interface IRTMDataWebRTCChannelPipeline {
 export interface IRTMDataWebRTCTransceiverRequest {
 	kind: string;
 	init: RTCRtpTransceiverInit;
+}
+
+export interface IRTMDataChatsMessage {
+	kind?: string;
+	sender: string;
+	target: string;
+	ts?: number;
+	text: string;
+	richText?: string;
+	id: string;
 }
 
 export class RTMDataError {

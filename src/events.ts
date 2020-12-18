@@ -10,7 +10,7 @@
 
 import * as SimplePeer from 'simple-peer';
 
-import { IRTMDataProfile } from './rtm';
+import { IRTMDataProfile, IRTMDataChatsMessage } from './rtm';
 
 export interface IPeerRecord {
 	user: string;
@@ -145,4 +145,31 @@ export class WebRTCAnnounceStreamsEvent extends WebRTCPeerEvent {
 		this.added = added;
 		this.removed = removed;
 	}
+}
+
+export class ChatsEvent extends BaseEvent {
+	public static eventName = 'ChatsEvent';
+
+	public channel = '';
+
+	public constructor(target: any) {
+		super(target);
+	}
+}
+
+export class ChatsMessageEvent extends ChatsEvent {
+	public static eventName = 'ChatsMessageEvent';
+
+	public message: IRTMDataChatsMessage;
+	public profile?: IRTMDataProfile;
+
+	public constructor(target: any, message: IRTMDataChatsMessage, profile?: IRTMDataProfile) {
+		super(target);
+		this.message = message;
+		this.profile = profile;
+	}
+}
+
+export class ChatsSystemEvent extends ChatsMessageEvent {
+	public static eventName = 'ChatsSystemEvent';
 }

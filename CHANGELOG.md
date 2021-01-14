@@ -4,6 +4,11 @@
 
 
 
+## v1.3.0 (2021-01-14)
+
+- Add chat support
+
+
 ## v1.2.3 (2020-11-24)
 
 - Remove forgotten debug logging

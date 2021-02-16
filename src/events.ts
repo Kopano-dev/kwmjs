@@ -10,7 +10,7 @@
 
 import * as SimplePeer from 'simple-peer';
 
-import { IRTMDataProfile, IRTMDataChatsMessage } from './rtm';
+import { IRTMDataProfile, IRTMDataChatsMessage, IServerStatus } from './rtm';
 
 export interface IPeerRecord {
 	user: string;
@@ -55,6 +55,18 @@ export class KWMStateChangedEvent extends BaseEvent {
 		this.connecting = target.connecting;
 		this.connected = target.connected;
 		this.reconnecting = target.reconnecting;
+	}
+}
+
+export class KWMServerStatusEvent extends BaseEvent {
+	public static eventName = 'KWMServerStatusEvent';
+
+	public serverStatus: IServerStatus;
+
+	public constructor(target: any) {
+		super(target);
+
+		this.serverStatus = target.serverStatus;
 	}
 }
 

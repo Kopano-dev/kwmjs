@@ -35,6 +35,10 @@ export interface ISelf {
 	name: string;
 }
 
+export interface IServerStatus {
+	kustomer?: number;
+}
+
 export interface IRTMDataError {
 	code: string;
 	msg: string;
@@ -51,6 +55,7 @@ export interface IRTMTypeEnvelope {
 
 export interface IRTMTypeHello extends IRTMTypeEnvelope {
 	self?: ISelf;
+	server_status?: IServerStatus;
 }
 
 export interface IRTMTypeEnvelopeReply extends IRTMTypeEnvelope {

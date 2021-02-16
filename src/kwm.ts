@@ -12,12 +12,12 @@
 'use strict';
 
 import * as URLSearchParams from 'url-search-params';
-import { KWMErrorEvent, KWMStateChangedEvent, KWMTURNServerChangedEvent } from './events';
+import { KWMErrorEvent, KWMServerStatusEvent, KWMStateChangedEvent, KWMTURNServerChangedEvent } from './events';
 import { Plugins } from './plugins';
 import {
 	IRTMConnectResponse, IRTMDataError, IRTMTURNResponse, IRTMTypeEnvelope,
 	IRTMTypeEnvelopeReply, IRTMTypeError, IRTMTypeHello, IRTMTypePingPong, IRTMTypeWebRTC,
-	ISelf, ITURNConfig, RTMDataError, IRTMTypeChats } from './rtm';
+	ISelf, ITURNConfig, RTMDataError, IRTMTypeChats, IServerStatus } from './rtm';
 import { makeAbsoluteURL } from './utils';
 import { IWebRTCManagerContainer, PeerRecord, WebRTCManager } from './webrtc';
 import { IChatsManagerContainer, ChatsManager } from './chats';
@@ -157,10 +157,22 @@ export class KWM implements IWebRTCManagerContainer, IChatsManagerContainer {
 	public self?: ISelf;
 
 	/**
+	 * Server status information as received by the server. This is only set if
+	 * the KWM server connection is connected and hello has been received. It
+	 * also the value is updated whenever [[KWMServerStatusEvent]] is triggered.
+	 */
+	public serverStatus?: IServerStatus;
+
+	/**
 	 * Event handler for [[KWMStateChangedEvent]]. Set to a function to get called
 	 * whenever [[KWMStateChangedEvent]]s are triggered.
 	 */
 	public onstatechanged?: (event: KWMStateChangedEvent) => void;
+	/**
+	 * Event handler for [[KWMServerStatusEvent]]. Set it to a function to get
+	 * called whenever [[KWMServerStatusEvent]]s are triggered.
+	 */
+	public onserverstatus?: (event: KWMServerStatusEvent) => void;
 	/**
 	 * Event handler for [[KWMErrorEvent]]. Set to a function to get called
 	 * whenever [[KWMErrorEvent]]s are triggered.
@@ -524,6 +536,16 @@ export class KWM implements IWebRTCManagerContainer, IChatsManagerContainer {
 	}
 
 	/**
+	 * Dispatch a new [[KWMServerStatusEvent]].
+	 * @private
+	 */
+	public dispatchServerStatusEvent(): KWMServerStatusEvent {
+		const e = new KWMServerStatusEvent(this);
+		this.dispatchEvent(e);
+		return e;
+	}
+
+	/**
 	 * Dispatch a new [[KWMErrorEvent]] with the provided error details.
 	 * @private
 	 */
@@ -810,6 +832,10 @@ export class KWM implements IWebRTCManagerContainer, IChatsManagerContainer {
 			case 'hello': {
 				console.debug('kwm server hello', message);
 				const helloMessage = message as IRTMTypeHello;
+				if (helloMessage.server_status) {
+					this.serverStatus = helloMessage.server_status;
+					this.dispatchServerStatusEvent();
+				}
 				this.self = helloMessage.self;
 				this.webrtc.handleHello(helloMessage, this.user);
 				this.dispatchStateChangedEvent();
@@ -821,6 +847,14 @@ export class KWM implements IWebRTCManagerContainer, IChatsManagerContainer {
 				this.closeWebsocket(this.socket);
 				this.connected = false;
 				break;
+			case 'server': {
+				const helloMessage = message as IRTMTypeHello;
+				if (helloMessage.server_status) {
+					this.serverStatus = helloMessage.server_status;
+					this.dispatchServerStatusEvent();
+				}
+				break;
+			}
 			case 'webrtc':
 				this.webrtc.handleWebRTCMessage(message as IRTMTypeWebRTC);
 				break;
@@ -849,6 +883,11 @@ export class KWM implements IWebRTCManagerContainer, IChatsManagerContainer {
 			case KWMStateChangedEvent.getName():
 				if (this.onstatechanged) {
 					this.onstatechanged(event);
+				}
+				break;
+			case KWMServerStatusEvent.getName():
+				if (this.onserverstatus) {
+					this.onserverstatus(event);
 				}
 				break;
 			case KWMErrorEvent.getName():

@@ -4,6 +4,11 @@
 
 
 
+## v1.3.1 (2021-02-16)
+
+- Expose server status data via event and property
+
+
 ## v1.3.0 (2021-01-14)
 
 - Add chat support
